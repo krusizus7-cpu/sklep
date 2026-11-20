@@ -15,6 +15,61 @@ from playwright.sync_api import expect, sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 ORIGIN = "http://127.0.0.1:8123"
 PASSWORD = "fixture-very-long-password"
+CONTACT = {
+    "name": "Warsztat testowy",
+    "address": "Testowa 2, 00-002 Warszawa",
+    "taxId": "1234567890",
+    "email": "warsztat@example.com",
+    "phone": "+48 500 600 700",
+    "facebookUrl": "https://www.facebook.com/bieznik-test",
+    "googleMapsEmbedUrl": "https://www.google.com/maps/embed?pb=fixture",
+    "googleMapsDirectionsUrl": "https://www.google.com/maps/dir/?api=1&destination=Testowa+2",
+}
+
+
+def workshop_contact(page):
+    page.goto(ORIGIN)
+    phone = page.get_by_role("link", name="Zadzwoń do warsztatu")
+    facebook = page.get_by_role("link", name="BIEŻNIK na Facebooku")
+    expect(phone).to_have_attribute("href", "tel:+48500600700")
+    expect(facebook).to_have_attribute("href", CONTACT["facebookUrl"])
+    expect(facebook).to_have_attribute("target", "_blank")
+    phone.focus()
+    expect(phone).to_be_focused()
+    page.keyboard.press("Tab")
+    expect(facebook).to_be_focused()
+    assert facebook.evaluate("element => getComputedStyle(element).outlineStyle") == "solid"
+    footer = page.get_by_role("contentinfo")
+    for field in ["name", "address", "taxId", "email", "phone"]:
+        expect(footer).to_contain_text(CONTACT[field])
+    expect(footer.get_by_role("link", name="Wyznacz trasę")).to_have_attribute("href", CONTACT["googleMapsDirectionsUrl"])
+    expect(footer.get_by_role("link", name="Regulamin")).to_be_visible()
+    iframe = footer.locator('iframe[title="Mapa Google – lokalizacja warsztatu"]')
+    expect(iframe).to_have_attribute("loading", "lazy")
+    iframe.scroll_into_view_if_needed()
+    expect(iframe.content_frame.get_by_text("Fixture Google Maps")).to_be_visible()
+    expect(phone).to_be_in_viewport()
+
+
+def contact_fallback(page, path):
+    footer = page.get_by_role("contentinfo")
+    page.goto(ORIGIN)
+    expect(footer).to_contain_text("Sprzedawca testowy")
+    expect(page.get_by_role("navigation", name="Szybki kontakt z warsztatem")).to_have_count(0)
+
+    path.write_text(json.dumps({"facebookUrl": CONTACT["facebookUrl"],
+                                "googleMapsEmbedUrl": "https://example.com/maps/embed?pb=fixture"}), encoding="utf-8")
+    page.reload()
+    expect(footer).to_contain_text("Sprzedawca testowy")
+    expect(page.get_by_role("link", name="BIEŻNIK na Facebooku")).to_be_visible()
+    expect(page.get_by_role("link", name="Zadzwoń do warsztatu")).to_have_count(0)
+    expect(footer.locator("iframe")).to_have_count(0)
+
+
+def assert_clear_of_widgets(action):
+    action_right, widget_left = action.evaluate("""element => [element.getBoundingClientRect().right,
+        document.querySelector('.contact-widgets').getBoundingClientRect().left]""")
+    assert action_right <= widget_left, (action.page.viewport_size, action_right, widget_left)
 
 
 def login(page, address):
@@ -43,9 +98,13 @@ def checkout(page):
     expect(page.locator(".catalog-grid .product-card")).to_have_count(1)
     page.get_by_role("button", name="Dodaj do koszyka: Felga testowa 18").click()
     page.get_by_role("link", name="Koszyk, sztuk: 1").click()
-    page.get_by_role("link", name="Przejdź do zamówienia").click()
+    assert_clear_of_widgets(page.get_by_role("button", name="Zwiększ ilość: Felga testowa 18"))
+    order_link = page.get_by_role("link", name="Przejdź do zamówienia")
+    assert_clear_of_widgets(order_link)
+    order_link.click()
     expect(page.locator("#shipping")).to_contain_text("24,00")
     expect(page.locator("#checkoutTotal")).to_contain_text("923,00")
+    assert_clear_of_widgets(page.get_by_role("button", name="Zamawiam i płacę"))
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
 
 
@@ -99,10 +158,12 @@ def pay(page, guest=False):
 
 
 with TemporaryDirectory() as directory:
+    contact_path = Path(directory) / "contact.json"
     env = {
         **os.environ, "P24_MODE": "sandbox", "P24_MERCHANT_ID": "123", "P24_POS_ID": "124",
         "P24_CRC": "fixture-crc", "P24_API_KEY": "fixture-key", "APP_ORIGIN": ORIGIN,
         "BIEZNIK_SHOP": "shop.example.json", "BIEZNIK_DB": str(Path(directory) / "test.sqlite"),
+        "BIEZNIK_CONTACT": str(contact_path),
         "NEXT_TELEMETRY_DISABLED": "1"
     }
     subprocess.run(["node", "server/create-admin.mjs", "admin@example.com"], input=PASSWORD + "\n",
@@ -127,11 +188,19 @@ with TemporaryDirectory() as directory:
             browser = playwright.chromium.launch(
                 executable_path=os.getenv("CHROMIUM_EXECUTABLE") or None, headless=True,
             )
-            for width in [320, 768, 1440, 390]:
+            page = browser.new_page()
+            contact_fallback(page, contact_path)
+            page.close()
+            contact_path.write_text(json.dumps(CONTACT), encoding="utf-8")
+            for width in [320, 768, 1024, 1440, 390]:
                 page = browser.new_page(viewport={"width": width, "height": 900}, reduced_motion="reduce")
                 page.set_default_timeout(8000)
+                page.route(CONTACT["googleMapsEmbedUrl"], lambda route: route.fulfill(
+                    content_type="text/html", body="Fixture Google Maps"))
                 failures = []
                 page.on("pageerror", lambda error: failures.append(str(error)))
+                if width in [320, 1440]:
+                    workshop_contact(page)
                 if width == 390:
                     register(page, "kupujacy@example.com")
                 checkout(page)
@@ -200,4 +269,4 @@ with TemporaryDirectory() as directory:
     finally:
         server.terminate()
         server.wait(timeout=10)
-print("Browser tests passed at 320, 390, 768 and 1440 pixels")
+print("Browser tests passed at 320, 390, 768, 1024 and 1440 pixels")

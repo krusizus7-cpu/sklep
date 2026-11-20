@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BasketProvider, CartLink, LastOrderLink, LegacyNavigation } from '@/components/basket';
+import { CompanyDetails, ContactWidgets, WorkshopMap } from '@/components/workshop-contact';
+import { readContact } from '@/lib/contact';
 import { readShop } from '@/lib/store';
 import './next-store.css';
 
@@ -15,6 +17,9 @@ const navigation = [['/opony', 'Opony'], ['/felgi', 'Felgi'], ['/oferta', 'Cała
 
 export default function Layout({children}: Readonly<{children: React.ReactNode}>) {
   const shop = readShop();
+  const contact = readContact();
+  const merchant = shop.ordering ? shop.merchant : undefined;
+  const company = contact.name && contact.address ? contact : merchant ?? contact;
   return <html lang="pl"><head>
     {['fonts', 'styles', 'polish', 'hero-finder', 'storefront'].map(name =>
       <link key={name} rel="stylesheet" href={`/${name}.css`}/>)}
@@ -43,16 +48,13 @@ export default function Layout({children}: Readonly<{children: React.ReactNode}>
         </div>
       </header>
       <main id="main" tabIndex={-1}>{children}</main>
+      <ContactWidgets {...contact}/>
       <footer className="footer"><div className="wrap footer-cols storefront-footer">
         <Link href="/" className="brand"><span className="brand-name">BIEŻNIK<span className="brand-period">.</span></span></Link>
         <nav aria-label="Informacje o sklepie"><Link href="/opony">Opony</Link><Link href="/felgi">Felgi</Link><Link href="/poradnik">Dobór kół</Link><LastOrderLink/></nav>
-        {shop.ordering && <>
-          <div><h3>Sprzedawca</h3><p>{shop.merchant.name} · {shop.merchant.address}{shop.merchant.taxId && ' · NIP ' + shop.merchant.taxId}</p>
-            <a href={'mailto:' + shop.merchant.email}>{shop.merchant.email}</a>
-            {shop.merchant.phone && <a href={'tel:' + shop.merchant.phone}>{shop.merchant.phone}</a>}
-          </div>
-          <nav aria-label="Regulamin i prywatność"><a href={shop.merchant.termsUrl}>Regulamin</a><a href={shop.merchant.privacyUrl}>Prywatność</a></nav>
-        </>}
+        <CompanyDetails {...company} title={company === merchant ? 'Sprzedawca' : 'Dane firmy'}/>
+        {merchant && <nav aria-label="Regulamin i prywatność"><a href={merchant.termsUrl}>Regulamin</a><a href={merchant.privacyUrl}>Prywatność</a></nav>}
+        <WorkshopMap {...contact}/>
       </div></footer>
     </BasketProvider>
   </body></html>;

@@ -111,3 +111,77 @@
 
 .pagination { margin-top: 24px; }
 .pagination a { text-decoration: underline; }
+
+.contact-widgets {
+  position: fixed;
+  inset-inline-end: max(16px, env(safe-area-inset-right));
+  inset-block-end: max(16px, env(safe-area-inset-bottom));
+  z-index: 15;
+  display: grid;
+  gap: 8px;
+}
+.contact-widgets a {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid #58595e;
+  border-radius: 50%;
+  background: #232427;
+  color: #fff;
+  box-shadow: 0 4px 12px #0006;
+}
+.contact-widgets a:hover { background: #37383e; }
+.contact-widgets .contact-call { background: #c32640; border-color: #c32640; }
+.contact-widgets .contact-call:hover { background: #a81e34; }
+.contact-widgets svg { width: 23px; height: 23px; }
+.contact-widgets a:focus-visible,
+.storefront-footer :is(.company-details a, .workshop-map a):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.storefront-footer :is(.company-details, .workshop-map) h2 {
+  margin: 0 0 12px;
+  font: 700 13px 'Space Grotesk', sans-serif;
+  color: var(--ink);
+}
+.storefront-footer .company-details address {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  font: 400 13px/1.5 'DM Sans', sans-serif;
+  overflow-wrap: anywhere;
+  color: #b6b6ba;
+}
+.storefront-footer .company-details strong { color: var(--ink); }
+.storefront-footer .workshop-map {
+  grid-column: 1 / -1;
+  border-top: 1px solid #38383b;
+  padding-top: 24px;
+}
+.storefront-footer .workshop-map iframe {
+  display: block;
+  width: 100%;
+  height: clamp(240px, 32vw, 340px);
+  border: 1px solid #38383b;
+  margin-bottom: 12px;
+}
+.storefront-footer .workshop-map a { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 1024px) {
+  body:has(.contact-widgets) :is(.cart-layout .checkout-summary, .checkout-layout .panel-form) > .btn-wide {
+    max-width: calc(100% - max(38px, env(safe-area-inset-right)));
+  }
+}
+
+@media (max-width: 800px) {
+  .contact-widgets { inset-inline-end: max(12px, env(safe-area-inset-right)); }
+  body:has(.contact-widgets) .cart-line-right {
+    padding-inline-end: max(48px, env(safe-area-inset-right));
+    flex-wrap: wrap;
+  }
+  body:has(.contact-widgets) .storefront-footer {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+}

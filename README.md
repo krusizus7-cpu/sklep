@@ -15,6 +15,19 @@ Otwórz `http://localhost:8000`. Wersję produkcyjną uruchamiają `npm run buil
 
 Domyślny tryb `preview` pokazuje oznaczoną ofertę z makiety. Składanie zamówień jest w nim wyłączone. Panel klienta i panel admina można sprawdzić z testowymi kontami. Dane podglądu są w osobnej bazie `data/preview.sqlite` (nadpisanie ścieżki przez `BIEZNIK_PREVIEW_DB`).
 
+## Kontakt z warsztatem
+
+Zapisz publiczne dane firmy jako obiekt JSON w `data/contact.json`. Inną ścieżkę można ustawić przez `BIEZNIK_CONTACT`. Konfiguracja działa w trybie podglądu i w sklepie z włączoną sprzedażą. Każde pole jest opcjonalne. Uzupełnij nazwę i adres razem, aby w stopce sklepu wyświetlić dane firmy z tego pliku zamiast dotychczasowych danych sprzedawcy.
+
+| Pole | Wartość |
+| --- | --- |
+| `name`, `address` | Pełna nazwa firmy i adres wyświetlany w stopce |
+| `taxId`, `email` | NIP i publiczny e-mail firmy |
+| `phone` | Publiczny numer warsztatu, najlepiej z prefiksem `+48`. Uaktywnia przycisk telefonu |
+| `facebookUrl` | Adres HTTPS fanpage’a w serwisie Facebook. Uaktywnia przycisk Facebooka |
+| `googleMapsEmbedUrl` | Otwórz pinezkę warsztatu w Google Maps, wybierz „Udostępnij” → „Umieść mapę” i skopiuj sam adres `src` z kodu `iframe` |
+| `googleMapsDirectionsUrl` | Link HTTPS do trasy do tej samej pinezki. Użyj adresu z Google Maps z otwartą trasą lub udostępnionego krótkiego linku do pinezki |
+
 ## Panele
 
 - `/konto` pokazuje zamówienia zapisane podczas zalogowanego zakupu, status i numer przesyłki. Gość kupuje bez rejestracji i wraca do statusu przez swój link. Starsze zamówienia bez konta zachowują dostęp przez dotychczasowy numer. Zamówienia przypisane do konta są dostępne dla właściciela i obsługi.

@@ -11,6 +11,7 @@ export function proxy(request: NextRequest) {
     "img-src 'self' data:",
     "font-src 'self'",
     `connect-src 'self'${dev ? ' ws: wss:' : ''}`,
+    "frame-src https://www.google.com/maps/embed",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
