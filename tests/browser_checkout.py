@@ -40,7 +40,7 @@ def checkout(page):
     page.get_by_label("Średnica").select_option("18")
     page.get_by_role("button", name="Pokaż produkty").click()
     page.wait_for_url(re.compile(r"/felgi\?"))
-    expect(page.locator(".catalog-grid .product-card")).to_have_count(1)
+    expect(page.get_by_role("region", name="Wyniki katalogu felg").get_by_role("article")).to_have_count(1)
     page.get_by_role("button", name="Dodaj do koszyka: Felga testowa 18").click()
     page.get_by_role("link", name="Koszyk, sztuk: 1").click()
     page.get_by_role("link", name="Przejdź do zamówienia").click()

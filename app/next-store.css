@@ -63,6 +63,8 @@
 .admin-form, .shipping-form { max-width: 780px; }
 .admin-form .btn, .shipping-form .btn { justify-self: start; }
 .admin-form .form-duo, .checkout-layout .form-duo { margin: 0; }
+.admin-form .form-duo .checkbox-line { align-self: end; flex-direction: row; align-items: center; min-height: 49px; margin: 0; }
+.admin-form .checkbox-line input { width: 16px; min-height: 0; margin: 0; padding: 0; }
 
 .admin-nav, .admin-tabs, .account-actions {
   display: flex;

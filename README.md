@@ -21,6 +21,8 @@ Domyślny tryb `preview` pokazuje oznaczoną ofertę z makiety. Składanie zamó
 - `/admin` pozwala dodawać i edytować produkty, ceny i ilość dostępnych sztuk. W sekcji zamówień obsługa odczytuje adres dostawy i zapisuje numer przesyłki przy opłaconym zamówieniu. Zdjęcia i etykiety umieść w `public/assets/` i wskaż ich ścieżki w panelu.
 - Dane katalogu z panelu są przechowywane w bazie. Równoczesna zmiana produktu lub zapasów wymaga odświeżenia formularza przed zapisem.
 
+Dla opon panel i plik katalogu przyjmują opcjonalne pola `vehicle` (`passenger`, `suv`, `van`), `wetGripClass` (`A`–`E`, zgodnie z etykietą UE) i `bestseller` (`true` lub `false`).
+
 Konto administratora zakłada operator z dostępem do serwera. W Bash odczytaj hasło bez echa i przekaż je na standardowe wejście:
 
 ```sh
@@ -83,6 +85,7 @@ npm run orders -- cancel <numer-zamówienia> --confirmed-unpaid
 npm test
 npm run build
 CHROMIUM_EXECUTABLE=/usr/bin/chromium python tests/browser_checkout.py
+CHROMIUM_EXECUTABLE=/usr/bin/chromium python tests/browser_catalog.py
 ```
 
 Test przeglądarkowy wymaga Playwright dla Pythona i Chromium. Testy API i przeglądarki używają izolowanej bazy i testowych odpowiedzi bramki. Test połączenia z kontem i transakcja sandbox są osobnym krokiem.

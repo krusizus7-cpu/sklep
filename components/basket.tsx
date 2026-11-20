@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import { CatalogIcon } from './catalog-icon';
 
 type BasketState = {items: Record<string, number>; favorites: string[]};
 const empty: BasketState = {items: {}, favorites: []};
@@ -90,13 +91,13 @@ export function CartLink() {
     <span>Koszyk</span><span className="cart-number">{count}</span>
   </Link><span className="visually-hidden" role="status">{message}</span></>;
 }
-export function AddProduct({product, detail = false}: {product: Product; detail?: boolean}) {
+export function AddProduct({product, detail = false, catalogCard = false}: {product: Product; detail?: boolean; catalogCard?: boolean}) {
   const basket = useBasket();
   if (!product.stock) return <span className="stock-label">Niedostępny</span>;
-  return <button type="button" className={detail ? 'btn btn-red' : 'product-add'} disabled={!basket.ready}
+  return <button type="button" className={catalogCard ? 'shop-catalog-add' : detail ? 'btn btn-red' : 'product-add'} disabled={!basket.ready}
     aria-label={'Dodaj do koszyka: ' + product.name}
     onClick={() => basket.setQuantity(product, basket.quantityFor(product.id) + 1)}>
-    {detail ? 'Dodaj do koszyka' : '+'}
+    {catalogCard && <CatalogIcon name="cart"/>}{detail || catalogCard ? 'Dodaj do koszyka' : '+'}
   </button>;
 }
 export function FavoriteButton({id}: {id: string}) {

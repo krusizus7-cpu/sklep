@@ -29,6 +29,8 @@ export async function saveProduct(_state: Result, form: FormData): Promise<Resul
   };
   const product = (type === 'tires' ? {
     ...common, width: integer(form, 'width'), profile: integer(form, 'profile'), season: field(form, 'season'),
+    vehicle: field(form, 'vehicle') || undefined, wetGripClass: field(form, 'wetGripClass') || undefined,
+    bestseller: form.has('bestseller') || undefined,
     eprelUrl: field(form, 'eprelUrl') || undefined, labelImage: field(form, 'labelImage') || undefined
   } : {...common, pcd: field(form, 'pcd'), et: field(form, 'et'), finish: field(form, 'finish')}) as Product;
   try {

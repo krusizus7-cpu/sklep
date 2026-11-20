@@ -1,4 +1,5 @@
 import type { Product } from './types';
+import { vehicleLabels } from './tire-attributes.mjs';
 
 export const categories = {
   oferta: {title: 'Cała oferta', type: undefined},
@@ -13,9 +14,14 @@ export const filterLabels: Record<Attribute, string> = {
   pcd: 'Rozstaw śrub (PCD)', et: 'Odsadzenie (ET)', finish: 'Wykończenie'
 };
 export const tireFields: Attribute[] = ['width', 'profile', 'diameter', 'season'];
-export const wheelFields: Attribute[] = ['diameter', 'pcd', 'et', 'finish'];
+export const wheelFields = ['diameter', 'pcd', 'et', 'finish'] as const;
 export const seasonOptions: Record<string, string> = {summer: 'Letnie', winter: 'Zimowe', allseason: 'Całoroczne'};
 export const value = (query: Query, key: string) => typeof query[key] === 'string' ? query[key] as string : '';
+
+export function vehicleValues(raw: Query['vehicle']) {
+  const entries = typeof raw === 'string' ? [raw] : raw ?? [];
+  return (Object.keys(vehicleLabels) as (keyof typeof vehicleLabels)[]).filter(vehicle => entries.includes(vehicle));
+}
 
 export function filterOptions(products: Product[], field: Attribute) {
   const values = [...new Set(products.map(product => product[field]).filter(attribute => attribute !== undefined))];
@@ -25,9 +31,13 @@ export function filterOptions(products: Product[], field: Attribute) {
 export function filterProducts(products: Product[], type: Product['type'] | undefined, query: Query) {
   const q = value(query, 'q').trim().toLocaleLowerCase('pl');
   const fields = type === 'tires' ? tireFields : type === 'wheels' ? wheelFields : ['diameter'] as const;
+  const vehicles = type === 'tires' ? vehicleValues(query.vehicle) : [];
+  const brand = type ? value(query, 'brand') : '';
   const filtered = products.filter(product => {
     if (type && type !== product.type) return false;
     if (fields.some(field => value(query, field) && String(product[field]) !== value(query, field))) return false;
+    if (brand && product.brand !== brand) return false;
+    if (vehicles.length && (!product.vehicle || !vehicles.includes(product.vehicle))) return false;
     return !q || [product.brand, product.name, product.size, product.seasonLabel, product.finish]
       .filter(Boolean).join(' ').toLocaleLowerCase('pl').includes(q);
   });

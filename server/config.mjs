@@ -1,5 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { vehicleLabels, wetGripClasses } from '../lib/tire-attributes.mjs';
 
 const string = (value, length = 200) => typeof value === 'string' && value.trim().length > 0 && value.length <= length;
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
@@ -47,6 +48,11 @@ export function validateProduct(product, live = false) {
           (!httpsUrl(product.eprelUrl) || new URL(product.eprelUrl).hostname !== 'eprel.ec.europa.eu' ||
           !assetPath(product.labelImage) || /\.svg$/i.test(product.labelImage)))) {
       throw new Error('Uzupełnij parametry opony i dane EPREL dla sprzedaży.');
+    }
+    if ((product.vehicle !== undefined && (typeof product.vehicle !== 'string' || !Object.hasOwn(vehicleLabels, product.vehicle))) ||
+        (product.wetGripClass !== undefined && !wetGripClasses.includes(product.wetGripClass)) ||
+        (product.bestseller !== undefined && typeof product.bestseller !== 'boolean')) {
+      throw new Error('Sprawdź typ pojazdu, klasę przyczepności na mokrym i oznaczenie bestseller.');
     }
   } else if (product.type !== 'wheels' || !['pcd', 'et', 'finish'].every(field => string(product[field], 60))) {
     throw new Error('Uzupełnij parametry felgi.');

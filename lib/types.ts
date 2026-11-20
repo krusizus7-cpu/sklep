@@ -1,3 +1,8 @@
+import type { vehicleLabels, wetGripClasses } from './tire-attributes.mjs';
+
+export type TireVehicle = keyof typeof vehicleLabels;
+export type WetGripClass = (typeof wetGripClasses)[number];
+
 export type Product = {
   id: string;
   type: 'tires' | 'wheels';
@@ -9,6 +14,9 @@ export type Product = {
   profile?: number;
   season?: 'summer' | 'winter' | 'allseason';
   seasonLabel?: string;
+  vehicle?: TireVehicle;
+  wetGripClass?: WetGripClass;
+  bestseller?: boolean;
   pcd?: string;
   et?: string;
   finish?: string;

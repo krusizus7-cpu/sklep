@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BasketProvider, CartLink, LastOrderLink, LegacyNavigation } from '@/components/basket';
+import { BasketProvider, LastOrderLink, LegacyNavigation } from '@/components/basket';
+import { SiteHeader } from '@/components/site-header';
 import { readShop } from '@/lib/store';
 import './next-store.css';
+import './shop-catalog.css';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -10,8 +12,6 @@ export const metadata: Metadata = {
   icons: {icon: '/assets/wheel-hero.svg'},
   description: 'Dobierz opony i felgi według parametrów. Zamów komplet z dostawą kurierską.'
 };
-
-const navigation = [['/opony', 'Opony'], ['/felgi', 'Felgi'], ['/oferta', 'Cała oferta'], ['/poradnik', 'Dobór kół'], ['/ulubione', 'Ulubione'], ['/konto', 'Moje konto']];
 
 export default function Layout({children}: Readonly<{children: React.ReactNode}>) {
   const shop = readShop();
@@ -25,23 +25,7 @@ export default function Layout({children}: Readonly<{children: React.ReactNode}>
       {(!shop.ordering || shop.paymentMode === 'sandbox') && <p className="preview-notice">
         {shop.ordering ? 'Tryb testowy Przelewy24. Zamówienia nie są realizowane.' : 'Tryb podglądu. Sprzedaż jest niedostępna.'}
       </p>}
-      <header className="site-header">
-        <div className="wrap header-inner">
-          <Link href="/" className="brand" aria-label="BIEŻNIK — strona główna">
-            <span className="brand-icon" aria-hidden="true"><i/><i/><i/></span>
-            <span className="brand-name">BIEŻNIK<span className="brand-period">.</span><small>TYRE &amp; WHEEL STUDIO</small></span>
-          </Link>
-          <nav className="desktop-nav" aria-label="Nawigacja główna">
-            {navigation.map(([href, name]) => <Link key={href} href={href}>{name}</Link>)}
-          </nav>
-          <div className="header-actions"><CartLink/>
-            <details className="nav-details">
-              <summary aria-label="Menu">Menu</summary>
-              <nav aria-label="Nawigacja mobilna">{navigation.map(([href, name]) => <a key={href} href={href}>{name}</a>)}</nav>
-            </details>
-          </div>
-        </div>
-      </header>
+      <SiteHeader/>
       <main id="main" tabIndex={-1}>{children}</main>
       <footer className="footer"><div className="wrap footer-cols storefront-footer">
         <Link href="/" className="brand"><span className="brand-name">BIEŻNIK<span className="brand-period">.</span></span></Link>

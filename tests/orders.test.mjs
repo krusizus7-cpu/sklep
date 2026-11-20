@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShopServer } from '../server.mjs';
+import { validateProduct } from '../server/config.mjs';
 import { createP24 } from '../server/p24.mjs';
 
 const merchant = {
@@ -31,7 +32,7 @@ const orderInput = (quantity = 2) => ({
 });
 const hash = value => createHash('sha384').update(JSON.stringify(value)).digest('hex');
 
-async function start(t, {enabled = true, failingFirst = false, verifiedRemotely = false} = {}) {
+async function start(t, {enabled = true, failingFirst = false, verifiedRemotely = false, catalog = shop} = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'bieznik-api-'));
   const calls = [];
   const p24 = createP24(merchant, async (url, options) => {
@@ -45,7 +46,7 @@ async function start(t, {enabled = true, failingFirst = false, verifiedRemotely 
     }
     return Response.json({data: url.endsWith('/register') ? {token: 'fixture-token'} : {status: 'success'}, responseCode: 0});
   });
-  const server = createShopServer({shop: enabled ? shop : null, dbPath: join(directory, 'shop.sqlite'), p24: enabled ? p24 : null});
+  const server = createShopServer({shop: enabled ? catalog : null, dbPath: join(directory, 'shop.sqlite'), p24: enabled ? p24 : null});
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => {
     await new Promise(resolve => server.close(resolve));
@@ -143,6 +144,26 @@ test('preview mode cannot create orders', async t => {
   assert.equal((await api.post('/api/orders', orderInput())).status, 503);
   assert.equal((await (await api.get('/api/shop')).json()).ordering, false);
   assert.equal(api.calls.length, 0);
+});
+
+test('the shop API exposes optional tire attributes and accepts older products', async t => {
+  const tire = {
+    id: 't1', type: 'tires', brand: 'Test', name: 'Opona testowa', size: '225/45 R18',
+    width: 225, profile: 45, diameter: 18, season: 'summer', priceCents: 45900,
+    stock: 8, image: '/assets/tire-sport.svg', description: 'Produkt testowy'
+  };
+  const attributes = {vehicle: 'suv', wetGripClass: 'B', bestseller: true};
+  validateProduct(tire);
+  validateProduct({...tire, ...attributes});
+  for (const invalid of [{vehicle: 'constructor'}, {wetGripClass: 'F'}, {bestseller: 'false'}]) {
+    assert.throws(() => validateProduct({...tire, ...attributes, ...invalid}), /klasę przyczepności/);
+  }
+  const api = await start(t, {catalog: {...shop, products: [tire, {...tire, id: 't2', ...attributes}]}});
+  const {products} = await (await api.get('/api/shop')).json();
+  for (const [key, value] of Object.entries(attributes)) {
+    assert.equal(products[0][key], undefined);
+    assert.equal(products[1][key], value);
+  }
 });
 
 test('a retried callback can recover a payment already verified by Przelewy24', async t => {

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { saveProduct } from '@/lib/admin-actions';
+import { vehicleLabels, wetGripClasses } from '@/lib/tire-attributes.mjs';
 import type { Product } from '@/lib/types';
 
 export function ProductForm({product, revision}: {product?: Product; revision?: string | null}) {
@@ -28,6 +29,15 @@ export function ProductForm({product, revision}: {product?: Product; revision?: 
       <label>Sezon<select name="season" defaultValue={product?.season ?? 'summer'}>
         <option value="summer">Letnia</option><option value="winter">Zimowa</option><option value="allseason">Całoroczna</option>
       </select></label>
+      <label>Typ pojazdu<select name="vehicle" defaultValue={product?.vehicle ?? ''}>
+        <option value="">Nie określono</option>
+        {Object.entries(vehicleLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+      </select></label>
+      <label>Klasa przyczepności na mokrym<select name="wetGripClass" defaultValue={product?.wetGripClass ?? ''}>
+        <option value="">Nie określono</option>
+        {wetGripClasses.map(value => <option value={value} key={value}>{value}</option>)}
+      </select></label>
+      <label className="checkbox-line"><input type="checkbox" name="bestseller" defaultChecked={product?.bestseller}/> Oznacz jako bestseller</label>
       <label>Karta EPREL<input type="url" name="eprelUrl" defaultValue={product?.eprelUrl} maxLength={500}/></label>
       <label>Ścieżka do etykiety UE<input name="labelImage" defaultValue={product?.labelImage} placeholder="/assets/etykieta.webp"/></label>
     </div> : <div className="form-duo">
