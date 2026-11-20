@@ -3,6 +3,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { openAudit, writeTransaction } from './admin-data.mjs';
+import { HttpError } from './orders.mjs';
 
 const derive = promisify(scrypt);
 const sessionAge = 14 * 24 * 60 * 60;
@@ -36,8 +38,18 @@ export function openAccounts(path) {
       expiresAt INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS accountSessionsExpiry ON accountSessions(expiresAt);
+    CREATE INDEX IF NOT EXISTS accountSessionsByAccount ON accountSessions(accountId);
+    CREATE TABLE IF NOT EXISTS blockedCustomers (
+      accountId TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+      blockedAt TEXT NOT NULL
+    );
   `);
-  const select = db.prepare('SELECT * FROM accounts WHERE email = ?');
+  const audit = openAudit(db);
+  const select = db.prepare(`SELECT accounts.*, blockedCustomers.blockedAt FROM accounts
+    LEFT JOIN blockedCustomers ON blockedCustomers.accountId = accounts.id WHERE email = ?`);
+  const accountList = `SELECT accounts.id, email, role, blockedAt FROM accounts
+    LEFT JOIN blockedCustomers ON blockedCustomers.accountId = accounts.id`;
+  const adminAccount = db.prepare(accountList + ' WHERE accounts.id = ?');
 
   async function create(email, password, role) {
     email = normalized(email);
@@ -55,26 +67,50 @@ export function openAccounts(path) {
   return {
     create: (email, password) => create(email, password, 'customer'),
     createAdmin: (email, password) => create(email, password, 'admin'),
+    adminAccounts(search = '', filter = 'all', offset = 0, limit = 26) {
+      const status = filter === 'blocked' ? ' AND blockedAt IS NOT NULL' : filter === 'active' ? ' AND blockedAt IS NULL' : '';
+      return db.prepare(accountList + ' WHERE instr(email, ?) > 0' + status + ' ORDER BY email, accounts.id LIMIT ? OFFSET ?')
+        .all(normalized(search), limit, offset);
+    },
+    adminAccount: id => adminAccount.get(id),
+    setCustomerBlocked(id, blocked, actor) {
+      writeTransaction(db, () => {
+        const account = adminAccount.get(id);
+        if (account?.role !== 'customer') throw new HttpError(404, 'Nie znaleziono konta klienta.');
+        if (Boolean(account.blockedAt) === blocked) return;
+        if (blocked) {
+          db.prepare('INSERT INTO blockedCustomers VALUES (?, ?)').run(id, new Date().toISOString());
+          db.prepare('DELETE FROM accountSessions WHERE accountId = ?').run(id);
+        } else {
+          db.prepare('DELETE FROM blockedCustomers WHERE accountId = ?').run(id);
+        }
+        audit.write(actor, 'uzytkownicy', blocked ? 'customerBlocked' : 'customerUnblocked', id);
+      });
+    },
     async authenticate(email, password) {
       email = normalized(email);
       if (!validEmail(email) || Buffer.byteLength(password) > 128) return null;
       const account = select.get(email);
       const hash = Buffer.from(await derive(password, account?.salt || '0'.repeat(32), 64));
-      if (!timingSafeEqual(hash, Buffer.from(account?.passwordHash || '0'.repeat(128), 'hex')) || !account) return null;
+      if (!timingSafeEqual(hash, Buffer.from(account?.passwordHash || '0'.repeat(128), 'hex')) || !account || account.blockedAt) return null;
       return {id: account.id, email: account.email, role: account.role};
     },
     startSession(accountId) {
       const token = randomBytes(32).toString('base64url');
       const now = Math.floor(Date.now() / 1000);
       db.prepare('DELETE FROM accountSessions WHERE expiresAt <= ?').run(now);
-      db.prepare('INSERT INTO accountSessions VALUES (?, ?, ?)').run(digestToken(token), accountId, now + sessionAge);
+      const result = db.prepare(`INSERT INTO accountSessions
+        SELECT ?, id, ? FROM accounts WHERE id = ? AND id NOT IN (SELECT accountId FROM blockedCustomers)`)
+        .run(digestToken(token), now + sessionAge, accountId);
+      if (!result.changes) return null;
       return {token, maxAge: sessionAge};
     },
     session(token) {
       if (!/^[\w-]{43}$/.test(token ?? '')) return null;
       const account = db.prepare(`SELECT accounts.id, accounts.email, accounts.role FROM accountSessions
         JOIN accounts ON accounts.id = accountSessions.accountId
-        WHERE accountSessions.hash = ? AND accountSessions.expiresAt > ?`)
+        WHERE accountSessions.hash = ? AND accountSessions.expiresAt > ?
+        AND accounts.id NOT IN (SELECT accountId FROM blockedCustomers)`)
         .get(digestToken(token), Math.floor(Date.now() / 1000));
       return account ? {...account} : null;
     },

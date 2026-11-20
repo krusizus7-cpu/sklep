@@ -12,13 +12,16 @@ export async function currentAccount(): Promise<Account | null> {
 
 export async function signIn(accountId: string) {
   const jar = await cookies();
+  const session = runtime().accounts.startSession(accountId);
+  if (!session) return false;
   runtime().accounts.endSession(jar.get(sessionKey)?.value);
-  const {token, maxAge} = runtime().accounts.startSession(accountId);
+  const {token, maxAge} = session;
   jar.set(sessionKey, token, {
     httpOnly: true,
     secure: process.env.APP_ORIGIN?.startsWith('https:') ?? process.env.NODE_ENV === 'production',
     sameSite: 'lax', path: '/', maxAge
   });
+  return true;
 }
 
 export async function signOut() {

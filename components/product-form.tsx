@@ -5,10 +5,14 @@ import { saveProduct } from '@/lib/admin-actions';
 import { vehicleLabels, wetGripClasses } from '@/lib/tire-attributes.mjs';
 import type { Product } from '@/lib/types';
 
-export function ProductForm({product, revision}: {product?: Product; revision?: string | null}) {
+export function ProductForm({product, revision, stockReasons}: {
+  product?: Product; revision?: string | null; stockReasons: Record<string, string>;
+}) {
   const [type, setType] = useState(product?.type ?? 'tires');
+  const [stock, setStock] = useState(String(product?.stock ?? 0));
   const [result, action, pending] = useActionState(saveProduct, {});
   return <form className="panel-form admin-form" action={action}>
+    <h2>Dane produktu</h2>
     <input type="hidden" name="revision" value={revision ?? ''}/>
     <input type="hidden" name="expectedStock" value={product?.stock ?? ''}/>
     <div className="form-duo">
@@ -47,11 +51,16 @@ export function ProductForm({product, revision}: {product?: Product; revision?: 
     </div>}
     <div className="form-duo">
       <label>Cena brutto w groszach<input type="number" name="priceCents" defaultValue={product?.priceCents} min={1} max={10000000} required/></label>
-      <label>Sztuki dostępne do sprzedaży<input type="number" name="stock" defaultValue={product?.stock ?? 0} min={0} max={100000} required/></label>
+      <label>Sztuki dostępne do sprzedaży<input type="number" name="stock" value={stock} onChange={event => setStock(event.currentTarget.value)}
+        min={0} max={100000} required/></label>
     </div>
+    {product && Number(stock) !== product.stock && <label>Powód korekty<select name="stockReason" defaultValue="" required>
+      <option value="" disabled>Wybierz powód</option>
+      {Object.entries(stockReasons).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select></label>}
     <label>Ścieżka do zdjęcia<input name="image" defaultValue={product?.image} placeholder="/assets/produkt.webp" required/></label>
     <label>Opis<textarea name="description" rows={4} defaultValue={product?.description} required maxLength={1000}/></label>
     {result.error && <p className="checkout-error" role="alert">{result.error}</p>}
-    <button className="btn btn-red" disabled={pending}>Zapisz produkt</button>
+    <button className="btn btn-red" disabled={pending}>{pending ? 'Zapisywanie…' : 'Zapisz produkt'}</button>
   </form>;
 }

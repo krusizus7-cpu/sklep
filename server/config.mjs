@@ -15,16 +15,24 @@ const httpsUrl = value => {
   }
 };
 
-export function loadShop(path, {live = false} = {}) {
-  const {merchant, shipping, products} = JSON.parse(readFileSync(path, 'utf8'));
+export function validateMerchant(merchant, live = false) {
   if (!merchant || !['name', 'address', 'email'].every(field => string(merchant[field])) ||
       !httpsUrl(merchant.termsUrl) || !httpsUrl(merchant.privacyUrl) ||
       (live && (!string(merchant.taxId, 30) || !string(merchant.phone, 30)))) {
     throw new Error('Uzupełnij dane sprzedawcy oraz adresy HTTPS regulaminu i polityki prywatności.');
   }
+}
+
+export function validateShipping(shipping) {
   if (!shipping || !integer(shipping.firstCents, 0, 100000) || !integer(shipping.additionalCents, 0, 100000)) {
     throw new Error('Uzupełnij koszt pierwszej i kolejnej sztuki w groszach.');
   }
+}
+
+export function loadShop(path, {live = false} = {}) {
+  const {merchant, shipping, products} = JSON.parse(readFileSync(path, 'utf8'));
+  validateMerchant(merchant, live);
+  validateShipping(shipping);
   if (!Array.isArray(products) || products.length === 0) throw new Error('Dodaj produkty do katalogu.');
   const ids = new Set();
   for (const product of products) {

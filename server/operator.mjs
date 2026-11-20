@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { loadRuntime, loadShop } from './config.mjs';
 import { createP24 } from './p24.mjs';
+import { reconcileOrder } from './commerce.mjs';
 import { openOrders, orderIdPattern } from './orders.mjs';
 
 process.umask(0o077);
@@ -32,14 +33,8 @@ async function run() {
       store.markShipped(value, arg.trim());
       console.log('Zapisano wysyłkę.');
     } else if (command === 'reconcile' && orderIdPattern.test(value ?? '')) {
-      const order = store.get(value);
-      if (!order || !['registering', 'pending'].includes(order.status)) {
-        throw new Error('Można uzgodnić tylko zamówienie oczekujące na płatność.');
-      }
       const p24 = createP24(loadRuntime().payment);
-      const providerOrderId = await p24.reconcile(value, order.total);
-      store.recordNotification(value, providerOrderId);
-      store.markPaid(value, providerOrderId);
+      await reconcileOrder(store, p24, value);
       console.log('Potwierdzono płatność w Przelewy24.');
     } else if (command === 'cancel' && orderIdPattern.test(value ?? '') && arg === '--confirmed-unpaid') {
       store.cancelUnpaid(value);

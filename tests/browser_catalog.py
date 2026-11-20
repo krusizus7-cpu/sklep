@@ -124,7 +124,7 @@ def edit_product(page):
     for label, value in fields.items():
         page.get_by_label(label, exact=True).fill(value)
     page.get_by_role('button', name='Zapisz produkt').click()
-    page.wait_for_url(ORIGIN + '/admin/produkty')
+    page.wait_for_url(ORIGIN + '/admin/produkty?zapisano=1')
 
     page.goto(ORIGIN + '/opony?q=archiwalna')
     expect(page.locator('.shop-catalog-card')).to_have_count(1)
@@ -137,7 +137,7 @@ def edit_product(page):
     page.get_by_label('Klasa przyczepności na mokrym').select_option('C')
     page.get_by_label('Oznacz jako bestseller').check()
     page.get_by_role('button', name='Zapisz produkt').click()
-    page.wait_for_url(ORIGIN + '/admin/produkty')
+    page.wait_for_url(ORIGIN + '/admin/produkty?zapisano=1')
     page.goto(ORIGIN + '/opony?q=archiwalna&vehicle=suv')
     expect(page.locator('.shop-catalog-card')).to_contain_text('Przyczepność na mokrym C')
     expect(page.get_by_text('Bestseller', exact=True)).to_be_visible()
@@ -150,7 +150,7 @@ def edit_product(page):
     page.get_by_label('Klasa przyczepności na mokrym').select_option('')
     page.get_by_label('Oznacz jako bestseller').uncheck()
     page.get_by_role('button', name='Zapisz produkt').click()
-    page.wait_for_url(ORIGIN + '/admin/produkty')
+    page.wait_for_url(ORIGIN + '/admin/produkty?zapisano=1')
     page.goto(ORIGIN + '/opony?q=archiwalna')
     expect(page.get_by_text('Bestseller', exact=True)).to_have_count(0)
     expect(page.get_by_text('Niedostępny', exact=True)).to_be_visible()

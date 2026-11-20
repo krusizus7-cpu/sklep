@@ -1,28 +1,36 @@
-import Link from 'next/link';
-import { Pagination, pageNumber } from '@/components/pagination';
-import { orderPageSize } from '@/server/orders.mjs';
+import { AdminEmpty, AdminFilter, AdminHeading, AdminOrderTable, AdminPagination, AdminSearch } from '@/components/admin-ui';
+import { adminPageSize, queryPage, queryValue, type AdminOrderRow, type AdminQuery } from '@/lib/admin';
 import { requireAdmin } from '@/lib/session';
 import { runtime } from '@/lib/store';
-import { date, money, statusNames, type OrderStatus, type OrderSummary } from '@/lib/types';
+import { statusNames } from '@/lib/types';
 
-const tabs = ['paid', 'shipped', 'pending', 'registering', 'cancelled'] as const;
-export default async function AdminOrders({searchParams}: {searchParams: Promise<{status?: string; strona?: string}>}) {
+const path = '/admin/zamowienia';
+const filters = {
+  paid: 'Do wysłania', all: 'Wszystkie zamówienia', shipped: statusNames.shipped,
+  pending: statusNames.pending, registering: statusNames.registering, cancelled: statusNames.cancelled
+};
+
+export default async function AdminOrders({searchParams}: {searchParams: Promise<AdminQuery>}) {
   await requireAdmin();
-  const {status: query, strona} = await searchParams;
-  const page = pageNumber(strona);
-  const status: OrderStatus = tabs.find(tab => tab === query) ?? 'paid';
-  const rows = runtime().orders.adminOrders(status, (page - 1) * orderPageSize) as unknown as OrderSummary[];
-  const orders = rows.slice(0, orderPageSize);
+  const query = await searchParams;
+  const value = queryValue(query, 'status');
+  const q = queryValue(query, 'q', 36);
+  const status = Object.hasOwn(filters, value) ? value : 'paid';
+  const {page, offset} = queryPage(query);
+  const rows = runtime().orders.adminOrders(status, offset, q, adminPageSize + 1) as unknown as AdminOrderRow[];
+
   return <>
-    <div className="page-intro"><h1>Zamówienia</h1></div>
-    <nav className="admin-tabs" aria-label="Status zamówienia">{tabs.map(tab =>
-      <Link key={tab} href={'/admin/zamowienia?status=' + tab} aria-current={status === tab ? 'page' : undefined}>{statusNames[tab]}</Link>
-    )}</nav>
-    {orders.length ? <div className="table-scroll"><table><caption className="visually-hidden">Zamówienia</caption>
-      <thead><tr><th scope="col">Numer zamówienia</th><th scope="col">Data</th><th scope="col">Kwota brutto</th></tr></thead>
-      <tbody>{orders.map(order => <tr key={order.id}><th scope="row"><Link href={'/admin/zamowienia/' + order.id}>{order.id}</Link></th>
-        <td>{date(order.createdAt)}</td><td>{money(order.total)}</td></tr>)}</tbody>
-    </table></div> : <p>Brak zamówień o tym statusie.</p>}
-    <Pagination page={page} path="/admin/zamowienia" query={{status}} hasMore={rows.length > orderPageSize}/>
+    <AdminHeading title="Zamówienia" description="Obsługa zamówień, wysyłek i numerów listów przewozowych."/>
+    <div className="admin-panel admin-list">
+      <AdminFilter path={path} active={Boolean(q || status !== 'paid')}>
+        <AdminSearch label="Numer zamówienia" value={q} max={36} placeholder="Pełny numer lub początek"/>
+        <label>Status zamówienia<select name="status" defaultValue={status}>
+          {Object.entries(filters).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select></label>
+      </AdminFilter>
+      {rows.length ? <AdminOrderTable orders={rows.slice(0, adminPageSize)}/>
+        : <AdminEmpty message="Brak zamówień spełniających wybrane kryteria."/>}
+      <AdminPagination page={page} path={path} query={{q, status}} hasMore={rows.length > adminPageSize}/>
+    </div>
   </>;
 }

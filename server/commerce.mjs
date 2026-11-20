@@ -2,10 +2,22 @@ import { HttpError, maxPerProduct, maxUnits, openOrders, orderIdPattern } from '
 
 const seasonLabels = {summer: 'Letnia', winter: 'Zimowa', allseason: 'Całoroczna'};
 
+export async function reconcileOrder(orders, p24, id, actor = null) {
+  const order = orderIdPattern.test(id) && orders.get(id);
+  if (!order) throw new HttpError(404, 'Nie znaleziono zamówienia.');
+  if (order.status === 'paid') return;
+  if (!['registering', 'pending'].includes(order.status)) {
+    throw new HttpError(409, 'Można uzgodnić tylko zamówienie oczekujące na płatność.');
+  }
+  const providerOrderId = await p24.reconcile(id, order.total, matched => orders.recordNotification(id, matched));
+  orders.markPaid(id, providerOrderId, actor);
+}
+
 export function createCommerce({shop, dbPath, p24}) {
   const orders = shop && p24 ? openOrders(dbPath, shop, p24.mode) : null;
   const registrations = new Map();
   const notifications = new Map();
+  const reconciliations = new Map();
   const attemptWindow = 60_000;
   let windowStarted = 0;
   let attempts = 0;
@@ -18,19 +30,23 @@ export function createCommerce({shop, dbPath, p24}) {
       ? {paymentUrl: p24.paymentUrl(order.token)} : {})
   });
 
-  const catalog = () => !orders ? {ordering: false} : {
-    ordering: true,
-    paymentMode: p24.mode,
-    merchant: Object.fromEntries(['name', 'address', 'email', 'taxId', 'phone', 'termsUrl', 'privacyUrl'].map(key => [key, shop.merchant[key]])),
-    shipping: shop.shipping,
-    maxPerProduct,
-    maxUnits,
-    products: orders.catalog().map(product => ({
-      ...Object.fromEntries(['id', 'type', 'brand', 'name', 'size', 'diameter', 'width', 'profile', 'season',
-        'vehicle', 'wetGripClass', 'bestseller', 'pcd', 'et', 'finish', 'priceCents', 'image', 'labelImage', 'eprelUrl', 'description'].map(key => [key, product[key]])),
-      seasonLabel: seasonLabels[product.season],
-      stock: product.stock
-    }))
+  const catalog = () => {
+    if (!orders) return {ordering: false};
+    const {merchant, shipping} = orders.settings();
+    return {
+      ordering: true,
+      paymentMode: p24.mode,
+      merchant: Object.fromEntries(['name', 'address', 'email', 'taxId', 'phone', 'termsUrl', 'privacyUrl'].map(key => [key, merchant[key]])),
+      shipping,
+      maxPerProduct,
+      maxUnits,
+      products: orders.catalog().map(product => ({
+        ...Object.fromEntries(['id', 'type', 'brand', 'name', 'size', 'diameter', 'width', 'profile', 'season',
+          'vehicle', 'wetGripClass', 'bestseller', 'pcd', 'et', 'finish', 'priceCents', 'image', 'labelImage', 'eprelUrl', 'description'].map(key => [key, product[key]])),
+        seasonLabel: seasonLabels[product.season],
+        stock: product.stock
+      }))
+    };
   };
 
   async function register(order) {
@@ -84,6 +100,14 @@ export function createCommerce({shop, dbPath, p24}) {
       return orderView(await register(orders.reserve(input, accountId)));
     },
     notify,
+    reconcile(id, actor) {
+      if (!orders) throw new HttpError(503, 'Płatności są niedostępne w trybie podglądu.');
+      if (!reconciliations.has(id)) {
+        const task = reconcileOrder(orders, p24, id, actor).finally(() => reconciliations.delete(id));
+        reconciliations.set(id, task);
+      }
+      return reconciliations.get(id);
+    },
     /** @param {string} id @param {{id: string, role: string} | null} viewer */
     status(id, viewer = null) {
       const order = orderIdPattern.test(id) && orders?.get(id);
