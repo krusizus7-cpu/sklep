@@ -3,10 +3,12 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadRuntime } from './server/config.mjs';
+import { createCommerce } from './server/commerce.mjs';
 import { createP24 } from './server/p24.mjs';
-import { HttpError, maxPerProduct, maxUnits, openOrders, orderIdPattern } from './server/orders.mjs';
+import { HttpError, orderIdPattern } from './server/orders.mjs';
 
 const publicRoot = fileURLToPath(new URL('./public/', import.meta.url));
+const legacyRoot = fileURLToPath(new URL('./legacy/', import.meta.url));
 const files = new Map([
   ['/', 'index.html'], ['/index.html', 'index.html'], ['/app.js', 'app.js'],
   ['/styles.css', 'styles.css'], ['/polish.css', 'polish.css'],
@@ -16,7 +18,7 @@ const types = {
   html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8',
   woff2: 'font/woff2', txt: 'text/plain; charset=utf-8', svg: 'image/svg+xml', webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg'
 };
-const seasonLabels = {summer: 'Letnia', winter: 'Zimowa', allseason: 'Całoroczna'};
+
 
 function json(res, status, value) {
   res.writeHead(status, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'});
@@ -45,70 +47,7 @@ async function readJson(req) {
 }
 
 export function createShopServer({shop, dbPath, p24}) {
-  const orders = shop && p24 ? openOrders(dbPath, shop, p24.mode) : null;
-  const registrations = new Map();
-  const notifications = new Map();
-  const attemptWindow = 60_000;
-  let windowStarted = 0;
-  let attempts = 0;
-  const orderView = order => ({
-    id: order.id,
-    status: order.shippedAt ? 'shipped' : order.status,
-    ...(order.shippedAt ? {trackingNumber: order.trackingNumber} : {}),
-    total: order.total,
-    ...(order.status === 'pending' && order.token && Date.now() < order.tokenAt + 15 * 60000
-      ? {paymentUrl: p24.paymentUrl(order.token)} : {})
-  });
-
-  const catalogView = () => !orders ? {ordering: false} : {
-    ordering: true,
-    paymentMode: p24.mode,
-    merchant: Object.fromEntries(['name', 'address', 'email', 'taxId', 'phone', 'termsUrl', 'privacyUrl'].map(key => [key, shop.merchant[key]])),
-    shipping: shop.shipping,
-    maxPerProduct,
-    maxUnits,
-    products: shop.products.map(product => ({
-      ...Object.fromEntries(['id', 'type', 'brand', 'name', 'size', 'diameter', 'width', 'profile', 'season',
-        'pcd', 'et', 'finish', 'priceCents', 'image', 'labelImage', 'eprelUrl', 'description'].map(key => [key, product[key]])),
-      seasonLabel: seasonLabels[product.season],
-      stock: orders.available(product.id)
-    }))
-  };
-
-  async function register(order) {
-    if (order.status !== 'registering' || Date.parse(order.createdAt) + 15 * 60000 < Date.now()) return order;
-    if (!registrations.has(order.id)) {
-      const tokenAt = Date.now();
-      registrations.set(order.id, p24.register(order)
-        .then(token => orders.register(order.id, token, tokenAt))
-        .catch(error => {
-          console.warn('P24 register:', order.id, error.name, error.message);
-          throw new HttpError(502, 'Przelewy24 jest chwilowo niedostępne. Spróbuj ponownie z tym samym koszykiem.');
-        })
-        .finally(() => registrations.delete(order.id)));
-    }
-    return registrations.get(order.id);
-  }
-
-  async function notify(body) {
-    if (!p24.authentic(body) || !orderIdPattern.test(body.sessionId)) throw new HttpError(400, 'Nieprawidłowe potwierdzenie płatności.');
-    const {sessionId, amount, originAmount, orderId} = body;
-    const order = orders.get(sessionId);
-    if (!order) throw new HttpError(404, 'Brak zamówienia.');
-    if (order.total !== amount || order.total !== originAmount) throw new HttpError(409, 'Niezgodna kwota płatności.');
-    orders.recordNotification(sessionId, orderId);
-    if (order.status === 'paid') return;
-    if (!notifications.has(sessionId)) {
-      notifications.set(sessionId, p24.verify(body)
-        .then(() => orders.markPaid(sessionId, orderId))
-        .catch(error => {
-          console.warn('P24 verify:', sessionId, error.name, error.message);
-          throw new HttpError(502, 'Nie udało się zweryfikować płatności.');
-        })
-        .finally(() => notifications.delete(sessionId)));
-    }
-    await notifications.get(sessionId);
-  }
+  const commerce = createCommerce({shop, dbPath, p24});
 
   async function handle(req, res) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -118,30 +57,19 @@ export function createShopServer({shop, dbPath, p24}) {
     if (p24?.mode === 'live') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
 
     const path = new URL(req.url, 'http://store.invalid').pathname;
-    if (req.method === 'GET' && path === '/api/shop') return json(res, 200, catalogView());
+    if (req.method === 'GET' && path === '/api/shop') return json(res, 200, commerce.catalog());
     if (req.method === 'POST' && path === '/api/orders') {
-      if (!orders) throw new HttpError(503, 'Sprzedaż jest jeszcze niedostępna.');
-      const now = Date.now();
-      if (now - windowStarted >= attemptWindow) {
-        windowStarted = now;
-        attempts = 0;
-      }
-      if (attempts++ >= 60) throw new HttpError(429, 'Za dużo prób. Spróbuj za minutę.');
-      const order = await register(orders.reserve(await readJson(req)));
-      return json(res, 201, orderView(order));
+      return json(res, 201, await commerce.submit(await readJson(req)));
     }
     if (req.method === 'POST' && path === '/api/payments/p24/notify') {
-      if (!orders) throw new HttpError(503, 'Płatności są niedostępne.');
-      await notify(await readJson(req));
+      await commerce.notify(await readJson(req));
       res.writeHead(200, {'Cache-Control': 'no-store'}).end();
       return;
     }
     const id = path.split('/').at(-1);
     if (req.method === 'GET' && orderIdPattern.test(id)) {
       if (path === '/api/orders/' + id) {
-        const order = orders?.get(id);
-        if (!order) throw new HttpError(404, 'Brak zamówienia.');
-        return json(res, 200, orderView(order));
+        return json(res, 200, commerce.status(id));
       }
       if (path === '/payment-return/' + id) {
         res.writeHead(303, {Location: '/#/order/' + id, 'Cache-Control': 'no-store'}).end();
@@ -153,7 +81,7 @@ export function createShopServer({shop, dbPath, p24}) {
     const font = /^\/fonts\/[\w-]+\.(?:woff2|txt)$/.test(path);
     const file = files.get(path) ?? (asset || font ? path.slice(1) : null);
     if (!file || !['GET', 'HEAD'].includes(req.method)) throw new HttpError(404, 'Nie znaleziono strony.');
-    const filename = resolve(publicRoot, file);
+    const filename = resolve(['index.html', 'app.js'].includes(file) ? legacyRoot : publicRoot, file);
     let contents;
     try {
       contents = req.method === 'HEAD' ? await stat(filename) : await readFile(filename);
@@ -174,7 +102,7 @@ export function createShopServer({shop, dbPath, p24}) {
       return json(res, 500, {error: 'Wystąpił błąd. Spróbuj ponownie.'});
     });
   });
-  server.on('close', () => orders?.close());
+  server.on('close', () => commerce.close());
   return server;
 }
 

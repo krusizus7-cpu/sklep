@@ -2,10 +2,28 @@
   "name": "bieznik-sklep",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=24.14.0" },
+  "engines": {
+    "node": ">=24.14.0"
+  },
   "scripts": {
-    "start": "node server.mjs",
+    "dev": "next dev -p \"${PORT:-8000}\" -H \"${BIND_HOST:-0.0.0.0}\"",
+    "build": "next build",
+    "start": "next start -p \"${PORT:-8000}\" -H \"${BIND_HOST:-0.0.0.0}\"",
+    "start:legacy": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "orders": "node server/operator.mjs"
+    "typecheck": "next typegen && tsc --noEmit",
+    "orders": "node server/operator.mjs",
+    "accounts:admin": "node server/create-admin.mjs"
+  },
+  "dependencies": {
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
   }
 }

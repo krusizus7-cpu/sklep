@@ -1,19 +1,42 @@
 # BIEŻNIK
 
-Sklep z oponami i felgami oparty na makiecie BIEŻNIK V2.2. Wysyłka kurierska na terenie Polski, płatność w bramce Przelewy24, zamówienia i dostępność w SQLite.
+Sklep z oponami i felgami oparty na makiecie BIEŻNIK V2.2. Next.js z App Routerem i TypeScript obsługują katalog, zamówienia, panel klienta i panel administracyjny. Wysyłka kurierem na terenie Polski, płatność przez Przelewy24, zamówienia, konta i dostępność w SQLite.
 
 ## Uruchomienie
 
-Z katalogu `/workspace/sklep` uruchom `npm start` na Node.js 24.14 lub nowszym. Otwórz `http://localhost:8000`. Projekt nie wymaga instalowania zależności ani kompilacji.
+Na Node.js 24.14 lub nowszym, z katalogu projektu:
 
-Domyślny tryb `preview` pokazuje oznaczoną ofertę z makiety. Składanie zamówień jest w nim wyłączone.
+```sh
+npm ci
+npm run dev
+```
+
+Otwórz `http://localhost:8000`. Wersję produkcyjną uruchamiają `npm run build` i `npm start`. Polecenie `npm run start:legacy` uruchamia poprzedni serwer na potrzeby zgodności i diagnostyki.
+
+Domyślny tryb `preview` pokazuje oznaczoną ofertę z makiety. Składanie zamówień jest w nim wyłączone. Panel klienta i panel admina można sprawdzić z testowymi kontami. Dane podglądu są w osobnej bazie `data/preview.sqlite` (nadpisanie ścieżki przez `BIEZNIK_PREVIEW_DB`).
+
+## Panele
+
+- `/konto` pokazuje zamówienia zapisane podczas zalogowanego zakupu, status i numer przesyłki. Gość kupuje bez rejestracji i wraca do statusu przez swój link. Starsze zamówienia bez konta zachowują dostęp przez dotychczasowy numer. Zamówienia przypisane do konta są dostępne dla właściciela i obsługi.
+- `/admin` pozwala dodawać i edytować produkty, ceny i ilość dostępnych sztuk. W sekcji zamówień obsługa odczytuje adres dostawy i zapisuje numer przesyłki przy opłaconym zamówieniu. Zdjęcia i etykiety umieść w `public/assets/` i wskaż ich ścieżki w panelu.
+- Dane katalogu z panelu są przechowywane w bazie. Równoczesna zmiana produktu lub zapasów wymaga odświeżenia formularza przed zapisem.
+
+Konto administratora zakłada operator z dostępem do serwera. W Bash odczytaj hasło bez echa i przekaż je na standardowe wejście:
+
+```sh
+read -rs admin_password
+printf '%s\n' "$admin_password" | npm run accounts:admin -- admin@example.com
+unset admin_password
+```
+
+Użyj tych samych ustawień bazy co aplikacja. Dla produkcji utwórz konto admina przed otwarciem rejestracji. Polecenie nie zmienia roli już istniejącego konta.
 
 ## Sandbox Przelewy24
 
 1. Utwórz konto sandbox w panelu Przelewy24. Włącz dostęp do REST API i skonfiguruj dozwolony adres IP serwera zgodnie z dokumentacją operatora.
 2. Skopiuj `shop.example.json` do `data/shop.json`. Wysyłka w przykładzie jest naliczana jako koszt pierwszej sztuki plus stawka za każdą kolejną sztukę.
 3. Ustaw poniższe zmienne w konfiguracji procesu. Klucz CRC i klucz API wprowadź przez magazyn sekretów hostingu.
-4. Uruchom `npm run orders -- test-access`, a następnie `npm start`. Złóż zamówienie i wykonaj płatność testową. Po powrocie ze strony operatora sprawdź, czy Przelewy24 wywołało webhook i zamówienie zmieniło status na opłacone. W sandboxie używaj danych testowych.
+4. Uruchom `npm run orders -- test-access`, a następnie zbuduj i uruchom aplikację. Złóż zamówienie i wykonaj płatność testową. Po powrocie ze strony operatora sprawdź, czy Przelewy24 wywołało webhook i zamówienie zmieniło status na opłacone. W sandboxie używaj danych testowych.
 
 | Zmienna | Wartość |
 | --- | --- |
@@ -33,7 +56,7 @@ Serwer przekazuje do Przelewy24 adres e-mail klienta, identyfikator zamówienia 
 
 Po pełnym teście sandboxa uzupełnij rzeczywiste dane sprzedawcy (w tym NIP i telefon), opublikuj regulamin i politykę prywatności, uzupełnij cennik dostawy i zastąp przykładowy katalog danymi handlowymi. Pole `priceCents` to cena brutto za sztukę w groszach. Każda pozycja wymaga zdjęcia w `public/assets/` w formacie WebP, JPG lub PNG. Dla opony podaj również rozmiar, sezon, `labelImage` z etykietą UE oraz `eprelUrl` do karty produktu. Zapewnij informacje o produkcie i warunkach sprzedaży odpowiednie dla swojej oferty.
 
-Uruchamiaj jeden proces aplikacji na serwerze z trwałym lokalnym dyskiem i kopią zapasową SQLite. Zakończ TLS w publicznym reverse proxy i ogranicz częstotliwość żądań do checkoutu per adres klienta. Uprawnienia do bazy, kopii i narzędzia operatora przyznaj wyłącznie obsłudze sklepu. Użyj produkcyjnych kluczy Przelewy24 i osobnej bazy, przetestuj dostęp do bramki i zweryfikuj pierwszą płatność przed udostępnieniem sklepu klientom.
+Uruchamiaj jeden proces aplikacji na serwerze z trwałym lokalnym dyskiem i kopią zapasową SQLite. Istniejąca baza wersji V2.2 jest rozszerzana przy pierwszym uruchomieniu i zachowuje zamówienia oraz zapasy. Zrób kopię przed aktualizacją. Zmiana silnika bazy na PostgreSQL wymaga osobnej migracji. Zakończ TLS w publicznym reverse proxy i ogranicz częstotliwość żądań do checkoutu per adres klienta. Uprawnienia do bazy, kopii i narzędzia operatora przyznaj wyłącznie obsłudze sklepu. Użyj produkcyjnych kluczy Przelewy24 i osobnej bazy, przetestuj dostęp do bramki i zweryfikuj pierwszą płatność przed udostępnieniem sklepu klientom.
 
 ## Obsługa zamówień
 
@@ -51,13 +74,14 @@ npm run orders -- cancel <numer-zamówienia> --confirmed-unpaid
 ```
 
 - Po opłaceniu zamówienia obsługa pobiera dane wysyłkowe poleceniem `show`, wysyła klientowi potwierdzenie zamówienia e-mailem i zamawia przesyłkę u przewoźnika. Nadanie odnotowuje poleceniem `ship`. Powiadomienia e-mail, etykiety przewoźnika i zwroty obsługuje się ręcznie.
-- Dostępność zmniejsza się przy utworzeniu zamówienia. Pole `stock` z katalogu inicjuje nowy SKU. Zmiany dostępności wprowadza polecenie `stock`. Wpisuj ilość wolną do sprzedaży, pomniejszoną o istniejące rezerwacje.
+- Dostępność zmniejsza się przy utworzeniu zamówienia. Pole `stock` z katalogu inicjuje nowy SKU. Dostępność zmienisz w panelu lub poleceniem `stock`. Wpisuj ilość wolną do sprzedaży, pomniejszoną o istniejące rezerwacje.
 - Przy braku webhooka polecenie `reconcile` sprawdza sesję i kwotę w Przelewy24. Porzucone zamówienie można anulować po 30 minutach i po sprawdzeniu u operatora, że płatność wygasła bez obciążenia klienta. Anulowanie oddaje sztuki do dostępnej puli.
 
 ## Testy
 
 ```sh
 npm test
+npm run build
 CHROMIUM_EXECUTABLE=/usr/bin/chromium python tests/browser_checkout.py
 ```
 

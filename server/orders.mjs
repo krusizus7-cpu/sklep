@@ -2,10 +2,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { validateProduct } from './config.mjs';
 
 export const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const maxUnits = 40;
 export const maxPerProduct = 20;
+export const orderPageSize = 50;
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -68,6 +70,10 @@ export function openOrders(dbPath, shop, mode) {
       id TEXT PRIMARY KEY,
       available INTEGER NOT NULL CHECK (available >= 0)
     );
+    CREATE TABLE IF NOT EXISTS catalogEdits (
+      id TEXT PRIMARY KEY,
+      item TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       requestId TEXT NOT NULL UNIQUE,
@@ -84,7 +90,8 @@ export function openOrders(dbPath, shop, mode) {
       createdAt TEXT NOT NULL,
       paidAt TEXT,
       shippedAt TEXT,
-      trackingNumber TEXT
+      trackingNumber TEXT,
+      accountId TEXT
     );
   `);
   db.prepare("INSERT OR IGNORE INTO metadata VALUES ('mode', ?)").run(mode);
@@ -92,7 +99,16 @@ export function openOrders(dbPath, shop, mode) {
     db.close();
     throw new Error('Użyj osobnych baz danych dla sandboxa i sprzedaży.');
   }
-  const products = new Map(shop.products.map(product => [product.id, product]));
+  const baseProducts = new Map(shop.products.map(product => [product.id, product]));
+  const edits = db.prepare('SELECT id, item FROM catalogEdits ORDER BY id');
+  const edit = db.prepare('SELECT item FROM catalogEdits WHERE id = ?');
+  function catalog() {
+    return [...new Map([...baseProducts, ...edits.all().map(row => [row.id, JSON.parse(row.item)])]).values()];
+  }
+  function productById(id) {
+    const row = edit.get(id);
+    return row ? JSON.parse(row.item) : baseProducts.get(id);
+  }
   const seedStock = db.prepare('INSERT OR IGNORE INTO stock VALUES (?, ?)');
   const readStock = db.prepare('SELECT available FROM stock WHERE id = ?');
   const selectOrder = db.prepare('SELECT * FROM orders WHERE id = ?');
@@ -110,24 +126,59 @@ export function openOrders(dbPath, shop, mode) {
   }
 
   transaction(() => {
-    for (const product of products.values()) seedStock.run(product.id, product.stock);
+    if (!db.prepare('PRAGMA table_info(orders)').all().some(column => column.name === 'accountId')) {
+      db.exec('ALTER TABLE orders ADD COLUMN accountId TEXT');
+    }
+    db.exec('CREATE INDEX IF NOT EXISTS ordersByAccount ON orders(accountId, createdAt)');
+    for (const product of catalog()) seedStock.run(product.id, product.stock);
   });
 
   return {
     available: id => readStock.get(id)?.available ?? 0,
     get: id => unpack(selectOrder.get(id)),
-    reserve(input) {
+    catalog: () => catalog().map(product => ({ ...product, stock: readStock.get(product.id)?.available ?? 0 })),
+    forAccount(accountId, offset = 0) {
+      return db.prepare('SELECT id, status, items, shipping, total, createdAt, paidAt, shippedAt, trackingNumber FROM orders WHERE accountId = ? ORDER BY createdAt DESC, id DESC LIMIT ? OFFSET ?')
+        .all(accountId, orderPageSize + 1, offset).map(row => ({ ...row, items: JSON.parse(row.items) }));
+    },
+    productRevision(id) {
+      const current = productById(id);
+      return current ? createHash('sha256').update(JSON.stringify(current)).digest('hex') : null;
+    },
+    saveProduct(product, expectedStock, expectedRevision) {
+      validateProduct(product, mode === 'live');
+      transaction(() => {
+        const previous = readStock.get(product.id);
+        const current = productById(product.id);
+        const revision = current ? createHash('sha256').update(JSON.stringify(current)).digest('hex') : null;
+        if ((previous?.available ?? null) !== expectedStock || revision !== expectedRevision) {
+          throw new HttpError(409, 'Produkt lub dostępność zmieniły się. Odśwież formularz.');
+        }
+        db.prepare('INSERT INTO catalogEdits VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET item = excluded.item')
+          .run(product.id, JSON.stringify(product));
+        db.prepare('INSERT INTO stock VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET available = excluded.available')
+          .run(product.id, product.stock);
+      });
+    },
+    adminOrders(status, offset = 0) {
+      const query = status === 'shipped' ? "status = 'paid' AND shippedAt IS NOT NULL"
+        : status === 'paid' ? "status = 'paid' AND shippedAt IS NULL" : 'status = ?';
+      const statement = db.prepare('SELECT id, status, total, createdAt, paidAt, shippedAt FROM orders WHERE ' + query + ' ORDER BY createdAt DESC, id DESC LIMIT ? OFFSET ?');
+      return query.endsWith('?') ? statement.all(status, orderPageSize + 1, offset) : statement.all(orderPageSize + 1, offset);
+    },
+    /** @param {any} input @param {string | null} accountId */
+    reserve(input, accountId = null) {
       const order = parseOrder(input);
       return transaction(() => {
         const existing = unpack(byRequest.get(order.requestId));
         if (existing) {
-          if (existing.fingerprint !== order.fingerprint) throw new HttpError(409, 'Dane zamówienia się zmieniły.');
+          if (existing.fingerprint !== order.fingerprint || existing.accountId !== accountId) throw new HttpError(409, 'Dane zamówienia się zmieniły.');
           return existing;
         }
         const snapshots = [];
         let subtotal = 0;
         for (const [id, quantity] of order.items) {
-          const product = products.get(id);
+          const product = productById(id);
           if (!product || (readStock.get(id)?.available ?? 0) < quantity) {
             throw new HttpError(409, 'Brakuje wybranej liczby sztuk. Sprawdź dostępność w katalogu.');
           }
@@ -138,9 +189,9 @@ export function openOrders(dbPath, shop, mode) {
         const total = subtotal + shipping;
         if (total !== order.expectedTotal) throw new HttpError(409, 'Cena lub koszt dostawy się zmieniły. Sprawdź podsumowanie.');
         const id = randomUUID();
-        db.prepare(`INSERT INTO orders (id, requestId, fingerprint, status, items, customer, shipping, total, termsUrl, createdAt)
-          VALUES (?, ?, ?, 'registering', ?, ?, ?, ?, ?, ?)`).run(id, order.requestId, order.fingerprint,
-          JSON.stringify(snapshots), JSON.stringify(order.customer), shipping, total, shop.merchant.termsUrl, new Date().toISOString());
+        db.prepare(`INSERT INTO orders (id, requestId, fingerprint, status, items, customer, shipping, total, termsUrl, createdAt, accountId)
+          VALUES (?, ?, ?, 'registering', ?, ?, ?, ?, ?, ?, ?)`).run(id, order.requestId, order.fingerprint,
+          JSON.stringify(snapshots), JSON.stringify(order.customer), shipping, total, shop.merchant.termsUrl, new Date().toISOString(), accountId);
         const reserveStock = db.prepare('UPDATE stock SET available = available - ? WHERE id = ?');
         for (const [product, quantity] of order.items) reserveStock.run(quantity, product);
         return unpack(selectOrder.get(id));
@@ -175,7 +226,7 @@ export function openOrders(dbPath, shop, mode) {
       if (!result.changes) throw new Error('Wysyłkę można zapisać tylko raz, dla opłaconego zamówienia.');
     },
     setStock(id, quantity) {
-      if (!products.has(id) || !Number.isSafeInteger(quantity) || quantity < 0 || quantity > 100000) throw new Error('Nieprawidłowy SKU lub stan.');
+      if (!productById(id) || !Number.isSafeInteger(quantity) || quantity < 0 || quantity > 100000) throw new Error('Nieprawidłowy SKU lub stan.');
       db.prepare('UPDATE stock SET available = ? WHERE id = ?').run(quantity, id);
     },
     cancelUnpaid(id) {

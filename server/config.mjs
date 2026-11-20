@@ -27,36 +27,41 @@ export function loadShop(path, {live = false} = {}) {
   if (!Array.isArray(products) || products.length === 0) throw new Error('Dodaj produkty do katalogu.');
   const ids = new Set();
   for (const product of products) {
-    if (!product || !/^[a-zA-Z0-9_-]{1,64}$/.test(product.id ?? '') || ids.has(product.id) ||
-        !['brand', 'name', 'size', 'description'].every(field => string(product[field], 1000)) ||
-        !integer(product.diameter, 8, 40) || !integer(product.priceCents, 1, 10000000) ||
-        !integer(product.stock, 0, 100000) || !assetPath(product.image) ||
-        (live && /\.svg$/i.test(product.image))) throw new Error('Nieprawidłowe lub powtórzone dane produktu.');
-    if (product.type === 'tires') {
-      if (!integer(product.width, 100, 400) || !integer(product.profile, 15, 95) ||
-          !['summer', 'winter', 'allseason'].includes(product.season) ||
-          ((live || product.eprelUrl || product.labelImage) &&
-            (!httpsUrl(product.eprelUrl) || new URL(product.eprelUrl).hostname !== 'eprel.ec.europa.eu' ||
-            !assetPath(product.labelImage) || /\.svg$/i.test(product.labelImage)))) {
-        throw new Error('Uzupełnij parametry opony i dane EPREL dla sprzedaży.');
-      }
-    } else if (product.type !== 'wheels' || !['pcd', 'et', 'finish'].every(field => string(product[field], 60))) {
-      throw new Error('Uzupełnij parametry felgi.');
-    }
-    if (live) {
-      for (const path of [product.image, product.labelImage].filter(Boolean)) {
-        const file = new URL('../public' + path, import.meta.url);
-        if (!statSync(file, {throwIfNoEntry: false})?.isFile()) throw new Error('Brak pliku produktu: ' + path);
-      }
-    }
+    validateProduct(product, live);
+    if (ids.has(product.id)) throw new Error('Powtórzony identyfikator produktu.');
     ids.add(product.id);
   }
   return {merchant, shipping, products};
 }
 
+export function validateProduct(product, live = false) {
+  if (!product || typeof product.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(product.id) ||
+      !['brand', 'name', 'size', 'description'].every(field => string(product[field], 1000)) ||
+      !integer(product.diameter, 8, 40) || !integer(product.priceCents, 1, 10000000) ||
+      !integer(product.stock, 0, 100000) || !assetPath(product.image) ||
+      (live && /\.svg$/i.test(product.image))) throw new Error('Nieprawidłowe lub powtórzone dane produktu.');
+  if (product.type === 'tires') {
+    if (!integer(product.width, 100, 400) || !integer(product.profile, 15, 95) ||
+        !['summer', 'winter', 'allseason'].includes(product.season) ||
+        ((live || product.eprelUrl || product.labelImage) &&
+          (!httpsUrl(product.eprelUrl) || new URL(product.eprelUrl).hostname !== 'eprel.ec.europa.eu' ||
+          !assetPath(product.labelImage) || /\.svg$/i.test(product.labelImage)))) {
+      throw new Error('Uzupełnij parametry opony i dane EPREL dla sprzedaży.');
+    }
+  } else if (product.type !== 'wheels' || !['pcd', 'et', 'finish'].every(field => string(product[field], 60))) {
+    throw new Error('Uzupełnij parametry felgi.');
+  }
+  if (live) {
+    for (const path of [product.image, product.labelImage].filter(Boolean)) {
+      const file = resolve('public', '.' + path);
+      if (!statSync(file, {throwIfNoEntry: false})?.isFile()) throw new Error('Brak pliku produktu: ' + path);
+    }
+  }
+}
+
 export function loadRuntime(env = process.env) {
   const mode = env.P24_MODE || 'preview';
-  const dbPath = resolve(env.BIEZNIK_DB || 'data/shop.sqlite');
+  const dbPath = resolve(/* turbopackIgnore: true */ env.BIEZNIK_DB || 'data/shop.sqlite');
   if (mode === 'preview') return {dbPath, shop: null, payment: null};
   if (!['sandbox', 'live'].includes(mode)) throw new Error('Nieprawidłowy P24_MODE.');
   const live = mode === 'live';

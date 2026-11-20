@@ -1,0 +1,113 @@
+.hero-left .hero-finder-heading h1 {
+  margin: 0;
+  color: var(--ink);
+  font: 800 clamp(2.55rem, 4.4vw, 4.65rem)/.96 'Barlow Condensed', sans-serif;
+  letter-spacing: -.025em;
+  white-space: normal;
+}
+.hero-left .hero-finder-heading h1 span { color: var(--red); }
+
+.finder-tabs button[aria-pressed] {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #a6a4a8;
+  font: 700 .8rem 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  min-width: 100px;
+}
+.finder-tabs button[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--red);
+  background: #251d20;
+}
+.finder-help a { text-decoration: underline; }
+
+.header-inner .nav-details { display: none; }
+.basket-link { display: inline-flex; align-items: center; }
+.next-catalog { align-items: start; margin-top: 24px; }
+.catalog-result { margin: 0 0 18px; color: var(--muted); }
+.catalog-controls, .auth-form, .admin-form, .shipping-form { display: grid; gap: 16px; }
+.catalog-controls .btn { justify-content: center; }
+.catalog-controls a, .auth-form a, .history-list a, .account-actions + h2 + p a,
+.table-scroll a, .admin-nav a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.product-media > a {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.panel-form input[type="search"],
+.panel-form input[type="password"],
+.panel-form input[type="number"],
+.panel-form input[type="url"] {
+  width: 100%;
+  min-height: 47px;
+  border: 1px solid #45464a;
+  background: #222326;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 12px;
+}
+.cart-item-main h2 { font: 700 1rem 'Space Grotesk', sans-serif; margin: 0 0 6px; }
+.checkout-layout label a, .checkout-privacy a { text-decoration: underline; }
+.auth-form { max-width: 480px; }
+.auth-form p { margin: 0; }
+.admin-form, .shipping-form { max-width: 780px; }
+.admin-form .btn, .shipping-form .btn { justify-self: start; }
+.admin-form .form-duo, .checkout-layout .form-duo { margin: 0; }
+
+.admin-nav, .admin-tabs, .account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.admin-nav a, .admin-tabs a { padding-block: 8px; }
+.admin-tabs a[aria-current="page"] { border-bottom: 2px solid var(--red); }
+
+.table-scroll { overflow-x: auto; margin-top: 20px; }
+.table-scroll table { border-collapse: collapse; text-align: left; width: 100%; }
+.table-scroll th, .table-scroll td { padding: 14px; border-bottom: 1px solid #3b3b40; }
+.table-scroll thead { background: #232427; }
+.admin-order { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.admin-order address { font-style: normal; line-height: 1.75; overflow-wrap: anywhere; }
+.history-list { display: grid; gap: 12px; }
+.history-list summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; cursor: pointer; }
+.history-list summary span:first-child::before { content: '▸ '; color: var(--red); }
+.history-list details[open] summary span:first-child::before { content: '▾ '; }
+.history-items { padding: 0; list-style: none; }
+.history-items li { display: flex; justify-content: space-between; gap: 18px; padding: 9px 0; border-top: 1px solid #353539; }
+
+@media (max-width: 800px) {
+  .header-inner .nav-details { display: block; }
+  .nav-details summary { cursor: pointer; padding: 8px; font-weight: 700; }
+  .nav-details nav {
+    position: absolute;
+    inset: 100% 0 auto;
+    background: #161719;
+    border-bottom: 1px solid #3b3b40;
+    display: grid;
+    padding: 10px 16px;
+    z-index: 20;
+  }
+  .nav-details nav a { padding: 10px; }
+  .admin-order { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 550px) {
+  .finder-tabs button[aria-pressed] { min-width: 82px; padding: 0 8px; }
+  .hero-left .hero-finder-heading h1 { font-size: clamp(2.35rem, 9.5vw, 3.25rem); }
+  .checkout-layout .checkout-summary { grid-row: 1; }
+}
+
+.pagination { margin-top: 24px; }
+.pagination a { text-decoration: underline; }
