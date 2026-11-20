@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { shippingCost } from '@/lib/shipping.mjs';
 import { type Product, type Shop, type PaymentView, money } from '@/lib/types';
 import { useBasket } from './basket';
 
@@ -25,7 +26,7 @@ export function Checkout({shop, checkout = false, email}: {shop: Shop; checkout?
   const products = new Map(shop.products.map(product => [product.id, product]));
   const lines = Object.entries(items).map(([id, quantity]) => ({id, quantity, product: products.get(id)}));
   const subtotal = lines.reduce((sum, {quantity, product}) => sum + quantity * (product?.priceCents ?? 0), 0);
-  const shipping = shop.ordering && totalUnits > 0 ? shop.shipping.firstCents + (totalUnits - 1) * shop.shipping.additionalCents : 0;
+  const shipping = shop.ordering ? shippingCost(shop.shipping, totalUnits) : 0;
   const valid = totalUnits <= shop.maxUnits && lines.every(({quantity, product}) => product && quantity <= product.stock);
   const retryId = useRef<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);

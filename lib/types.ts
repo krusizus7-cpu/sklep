@@ -24,13 +24,15 @@ export type Merchant = {
   name: string; address: string; email: string; taxId?: string; phone?: string; termsUrl: string; privacyUrl: string;
 };
 
+export type ShippingRates = {firstCents: number; additionalCents: number};
+
 export type Shop = {
   products: Product[];
   maxPerProduct: number;
   maxUnits: number;
 } & ({ ordering: false } | {
   ordering: true; paymentMode: 'sandbox' | 'live'; merchant: Merchant;
-  shipping: { firstCents: number; additionalCents: number };
+  shipping: ShippingRates;
 });
 
 export type Account = {id: string; email: string; role: 'customer' | 'admin'};
@@ -54,3 +56,8 @@ export const money = (cents: number) => new Intl.NumberFormat('pl-PL', {style: '
 export const date = (stamp: string) => new Intl.DateTimeFormat('pl-PL', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Warsaw'
 }).format(new Date(stamp));
+
+export type Review = {id: number; rating: number; body: string; createdAt: string};
+export const reviewStatusNames = {
+  pending: 'Oczekuje na zatwierdzenie', approved: 'Opublikowana', rejected: 'Odrzucona'
+} as const;

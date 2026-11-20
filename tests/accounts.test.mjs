@@ -44,6 +44,24 @@ test('sessions are revocable, roles are fixed, and history follows the checkout 
     assert.throws(() => commerce.status(owned.id, other), {status: 404});
     assert.equal(commerce.status(owned.id, customer).id, owned.id);
     assert.equal(commerce.status(owned.id, admin).id, owned.id);
+
+    const sku = payload.items[0].id;
+    const submit = (accountId, productId = sku) =>
+      orders.submitReview(accountId, owned.id, productId, 4, 'Dobry produkt.');
+    orders.recordNotification(owned.id, 913);
+    orders.markPaid(owned.id, 913);
+    assert.throws(() => submit(customer.id), {status: 403});
+    orders.markShipped(owned.id, 'TEST');
+    assert.throws(() => submit(other.id), {status: 403});
+    assert.throws(() => submit(customer.id, 'inna-felga'), {status: 403});
+    submit(customer.id);
+    assert.throws(() => submit(customer.id), {status: 409});
+    assert.deepEqual(orders.publishedReviews(sku), []);
+    const pending = orders.pendingReviews();
+    assert.equal(pending.length, 1);
+    orders.moderateReview(pending[0].id, 'rejected');
+    assert.deepEqual(orders.publishedReviews(sku), []);
+    assert.equal(orders.reviewStatuses(customer.id)[0].status, 'rejected');
   } finally {
     commerce.close();
     orders.close();

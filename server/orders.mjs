@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { shippingCost } from '../lib/shipping.mjs';
 import { validateProduct } from './config.mjs';
 
 export const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -129,6 +130,20 @@ export function openOrders(dbPath, shop, mode) {
     if (!db.prepare('PRAGMA table_info(orders)').all().some(column => column.name === 'accountId')) {
       db.exec('ALTER TABLE orders ADD COLUMN accountId TEXT');
     }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER PRIMARY KEY,
+        accountId TEXT NOT NULL,
+        orderId TEXT NOT NULL,
+        sku TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+        body TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+        createdAt TEXT NOT NULL,
+        UNIQUE(accountId, sku)
+      );
+      CREATE INDEX IF NOT EXISTS reviewsForProduct ON reviews(sku, status, id);
+    `);
     db.exec('CREATE INDEX IF NOT EXISTS ordersByAccount ON orders(accountId, createdAt)');
     for (const product of catalog()) seedStock.run(product.id, product.stock);
   });
@@ -140,6 +155,38 @@ export function openOrders(dbPath, shop, mode) {
     forAccount(accountId, offset = 0) {
       return db.prepare('SELECT id, status, items, shipping, total, createdAt, paidAt, shippedAt, trackingNumber FROM orders WHERE accountId = ? ORDER BY createdAt DESC, id DESC LIMIT ? OFFSET ?')
         .all(accountId, orderPageSize + 1, offset).map(row => ({ ...row, items: JSON.parse(row.items) }));
+    },
+    submitReview(accountId, orderId, sku, rating, body) {
+      if (!accountId || !Number.isInteger(rating) || rating < 1 || rating > 5 ||
+          typeof body !== 'string' || !body.trim() || body.trim().length > 2000) {
+        throw new HttpError(400, 'Wybierz ocenę 1–5 i wpisz opinię do 2000 znaków.');
+      }
+      return transaction(() => {
+        const order = selectOrder.get(orderId);
+        if (!order || order.accountId !== accountId || order.status !== 'paid' || !order.shippedAt ||
+            !JSON.parse(order.items).some(item => item.id === sku)) {
+          throw new HttpError(403, 'Możesz ocenić produkt ze swojego wysłanego zamówienia.');
+        }
+        const result = db.prepare(`INSERT INTO reviews(accountId, orderId, sku, rating, body, createdAt)
+          VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(accountId, sku) DO NOTHING`)
+          .run(accountId, orderId, sku, rating, body.trim(), new Date().toISOString());
+        if (!result.changes) throw new HttpError(409, 'Opinia o tym produkcie została już wysłana.');
+      });
+    },
+    publishedReviews(sku) {
+      return db.prepare("SELECT id, rating, body, createdAt FROM reviews WHERE sku = ? AND status = 'approved' ORDER BY id DESC").all(sku);
+    },
+    pendingReviews() {
+      return db.prepare("SELECT id, sku, rating, body, createdAt FROM reviews WHERE status = 'pending' ORDER BY id").all();
+    },
+    reviewStatuses(accountId) {
+      return db.prepare('SELECT sku, status FROM reviews WHERE accountId = ?').all(accountId);
+    },
+    moderateReview(id, status) {
+      if (!['approved', 'rejected'].includes(status)) throw new HttpError(400, 'Nieprawidłowa decyzja.');
+      const row = db.prepare("UPDATE reviews SET status = ? WHERE id = ? AND status = 'pending' RETURNING sku").get(status, id);
+      if (!row) throw new HttpError(409, 'Ta opinia została już rozpatrzona.');
+      return row.sku;
     },
     productRevision(id) {
       const current = productById(id);
@@ -185,7 +232,7 @@ export function openOrders(dbPath, shop, mode) {
           snapshots.push({id, quantity, priceCents: product.priceCents, name: product.brand + ' ' + product.name, size: product.size});
           subtotal += product.priceCents * quantity;
         }
-        const shipping = shop.shipping.firstCents + (order.units - 1) * shop.shipping.additionalCents;
+        const shipping = shippingCost(shop.shipping, order.units);
         const total = subtotal + shipping;
         if (total !== order.expectedTotal) throw new HttpError(409, 'Cena lub koszt dostawy się zmieniły. Sprawdź podsumowanie.');
         const id = randomUUID();

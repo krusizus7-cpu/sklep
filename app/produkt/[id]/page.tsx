@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { AddProduct } from '@/components/basket';
 import { Cards } from '@/components/cards';
-import { readShop } from '@/lib/store';
-import { money } from '@/lib/types';
+import { ProductPurchase } from '@/components/product-purchase';
+import { readShop, runtime } from '@/lib/store';
+import { date, type Review } from '@/lib/types';
+import { ProductDetail } from '@/components/product-detail';
+import { CatalogReturn } from '@/components/catalog-navigation';
 
 type Props = {params: Promise<{id: string}>};
 function lookup(id: string) {
@@ -19,23 +21,25 @@ export async function generateMetadata({params}: Props) {
 export default async function ProductPage({params}: Props) {
   const {shop, product} = lookup((await params).id);
   const tire = product.type === 'tires';
+  const reviews = runtime().orders.publishedReviews(product.id) as unknown as Review[];
+  const average = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
   const related = shop.products.filter(item => item.id !== product.id && item.type === product.type).slice(0, 3);
   return <section className="wrap inner-page">
     <div className="breadcrumb"><Link href="/">Start</Link><span>/</span><Link href={tire ? '/opony' : '/felgi'}>{tire ? 'Opony' : 'Felgi'}</Link><span>/</span>{product.name}</div>
-    <div className="product-detail-layout">
-      <div className="detail-gallery"><img src={product.image} alt={`${product.brand} ${product.name}`} width="700" height="700"/></div>
-      <div className="detail-info"><p className="eyebrow">{product.brand}</p><h1>{product.name}</h1><p className="detail-lead">{product.description}</p>
-        <div className="detail-specs"><div><span>Rozmiar</span><strong>{product.size}</strong></div>
-          <div><span>{tire ? 'Sezon' : 'Wykończenie'}</span><strong>{tire ? product.seasonLabel : product.finish}</strong></div></div>
-        {product.eprelUrl && product.labelImage && <a className="eprel-label" href={product.eprelUrl} target="_blank" rel="noreferrer">
-          <img src={product.labelImage} alt="Etykieta UE opony"/>Karta informacyjna w EPREL
-        </a>}
-        <div className="detail-price-line"><div><strong>{money(product.priceCents)}</strong><small> / szt.</small></div>
-          <small>{shop.ordering ? `Dostępne sztuki: ${product.stock}` : 'Katalog podglądowy'}</small></div>
-        <AddProduct product={product} detail/>
-        <Link className="detail-back" href="/poradnik">Jak sprawdzić zgodność z samochodem?</Link>
-      </div>
-    </div>
+    <CatalogReturn product={product.id} category={tire ? '/opony' : '/felgi'}/>
+    <ProductDetail product={product} ordering={shop.ordering}>
+      <ProductPurchase key={product.id} product={product} rates={shop.ordering ? shop.shipping : undefined}/>
+      <Link className="detail-back" href="/poradnik">Jak sprawdzić zgodność z samochodem?</Link>
+    </ProductDetail>
+    <section className="product-reviews"><h2>Opinie kupujących</h2>
+      {reviews.length ? <>
+        <p>Średnia {average.toLocaleString('pl-PL', {maximumFractionDigits: 1})} / 5 · Liczba opinii: {reviews.length}</p>
+        {reviews.map(review => <article className="review-card" key={review.id}>
+          <strong>{review.rating} / 5</strong> · <span>Potwierdzony zakup</span> · <time dateTime={review.createdAt}>{date(review.createdAt)}</time>
+          <p className="review-body">{review.body}</p>
+        </article>)}
+      </> : <p>Ten produkt czeka na pierwszą opinię.</p>}
+    </section>
     {related.length > 0 && <section className="related-section"><div className="section-head"><h2>Podobne produkty</h2></div><Cards products={related}/></section>}
   </section>;
 }

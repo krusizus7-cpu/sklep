@@ -1,13 +1,35 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import { saveProduct } from '@/lib/admin-actions';
-import type { Product } from '@/lib/types';
+import { ProductDetail } from './product-detail';
+import { PreviewPurchase } from './product-purchase';
+import { productFromForm } from '@/lib/product-input';
+import type { ShippingRates, Product } from '@/lib/types';
 
-export function ProductForm({product, revision}: {product?: Product; revision?: string | null}) {
+export function ProductForm({product, revision, rates, limit}: {product?: Product; revision?: string | null; rates?: ShippingRates; limit: number}) {
   const [type, setType] = useState(product?.type ?? 'tires');
   const [result, action, pending] = useActionState(saveProduct, {});
-  return <form className="panel-form admin-form" action={action}>
+  const formRef = useRef<HTMLFormElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [actionContainer, setActionContainer] = useState<HTMLDivElement | null>(null);
+  const [preview, setPreview] = useState<Product | null>(null);
+  function showPreview() {
+    if (!formRef.current) return;
+    const draft = productFromForm(new FormData(formRef.current));
+    if (!draft) return;
+    const asset = /^\/assets\/[\w-]+\.(?:webp|png|jpe?g|svg)$/i;
+    setPreview({
+      ...draft,
+      name: draft.name || 'Nazwa produktu',
+      seasonLabel: draft.season && {summer: 'Letnia', winter: 'Zimowa', allseason: 'Całoroczna'}[draft.season],
+      image: asset.test(draft.image) ? draft.image : '',
+      labelImage: draft.labelImage && asset.test(draft.labelImage) ? draft.labelImage : undefined,
+      eprelUrl: draft.eprelUrl?.startsWith('https://eprel.ec.europa.eu/') ? draft.eprelUrl : undefined
+    });
+    dialogRef.current?.showModal();
+  }
+  return <><form className="panel-form admin-form" ref={formRef} action={action}>
     <input type="hidden" name="revision" value={revision ?? ''}/>
     <input type="hidden" name="expectedStock" value={product?.stock ?? ''}/>
     <div className="form-duo">
@@ -40,8 +62,22 @@ export function ProductForm({product, revision}: {product?: Product; revision?: 
       <label>Sztuki dostępne do sprzedaży<input type="number" name="stock" defaultValue={product?.stock ?? 0} min={0} max={100000} required/></label>
     </div>
     <label>Ścieżka do zdjęcia<input name="image" defaultValue={product?.image} placeholder="/assets/produkt.webp" required/></label>
-    <label>Opis<textarea name="description" rows={4} defaultValue={product?.description} required maxLength={1000}/></label>
+    <label><span id="product-description-label">Opis</span><textarea aria-labelledby="product-description-label" name="description" rows={4} defaultValue={product?.description} required maxLength={1000}/></label>
     {result.error && <p className="checkout-error" role="alert">{result.error}</p>}
-    <button className="btn btn-red" disabled={pending}>Zapisz produkt</button>
-  </form>;
+    <div className="account-actions">
+      <button className="btn btn-border" type="button" onClick={showPreview}>Podgląd mobilny</button>
+      <button className="btn btn-red" disabled={pending}>Zapisz produkt</button>
+    </div>
+  </form>
+  <dialog ref={dialogRef} className="mobile-preview" aria-labelledby="preview-title" onClose={() => setPreview(null)}>
+    <header><h2 id="preview-title">Podgląd mobilny</h2>
+      <button type="button" className="btn btn-border" onClick={() => dialogRef.current?.close()}>Zamknij</button>
+    </header>
+    <div className="preview-content">{preview && <ProductDetail product={preview} ordering={Boolean(rates)}>
+      {Number.isFinite(preview.priceCents) && Number.isFinite(preview.stock)
+        ? <PreviewPurchase product={preview} rates={rates} limit={limit} actionContainer={actionContainer}/>
+        : <p>Uzupełnij cenę i liczbę dostępnych sztuk.</p>}
+    </ProductDetail>}</div>
+    <div className="preview-footer" ref={setActionContainer}/>
+  </dialog></>;
 }

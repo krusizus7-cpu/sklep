@@ -3,12 +3,15 @@ import hashlib
 import json
 import os
 import re
+import sqlite3
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import monotonic, sleep
 from urllib.error import URLError
+from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
+from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -34,7 +37,7 @@ def register(page, address):
 
 def checkout(page):
     page.goto(ORIGIN)
-    expect(page.locator(".featured-section .product-card")).to_have_count(1)
+    expect(page.locator(".featured-section .product-card")).to_have_count(4)
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
     page.get_by_role("button", name="Felgi", exact=True).click()
     page.get_by_label("Średnica").select_option("18")
@@ -46,6 +49,130 @@ def checkout(page):
     page.get_by_role("link", name="Przejdź do zamówienia").click()
     expect(page.locator("#shipping")).to_contain_text("24,00")
     expect(page.locator("#checkoutTotal")).to_contain_text("923,00")
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+
+
+def catalog_filters(page, mobile):
+    page.goto(ORIGIN + "/opony")
+    search = page.get_by_role("searchbox", name="Szukaj produktu")
+    for size in ["225/50R17", "225 / 50 R17"]:
+        search.fill(size)
+        if mobile and " " in size:
+            page.get_by_role("button", name="Szukaj", exact=True).click()
+        else:
+            search.press("Enter")
+        page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("q") == [size])
+        expect(page.locator(".catalog-grid .product-card")).to_have_count(1)
+        expect(page.get_by_role("link", name="Opona testowa 17", exact=True)).to_be_visible()
+
+    toggle = page.get_by_role("button", name="Filtry", exact=True)
+    if mobile:
+        expect(page.get_by_label("Średnica")).to_be_hidden()
+        toggle.press("Enter")
+        expect(toggle).to_have_attribute("aria-expanded", "true")
+    else:
+        expect(toggle).to_be_hidden()
+    page.get_by_label("Średnica").select_option("16")
+    page.get_by_label("Sezon").select_option("summer")
+    page.get_by_label("Sortuj").select_option("high")
+    page.get_by_role("button", name="Zastosuj").click()
+    expect(page.get_by_role("heading", name="Brak produktów")).to_be_visible()
+    if mobile:
+        expect(page.get_by_role("button", name="Filtry (2)")).to_have_attribute("aria-expanded", "false")
+    page.get_by_role("link", name="Usuń „Średnica: 16” · Wyniki: 1").click()
+    expect(page.locator(".catalog-grid .product-card")).to_have_count(1)
+    expect(page.get_by_role("link", name="Usuń filtr Średnica: 16")).to_have_count(0)
+    page.get_by_role("link", name="Usuń filtr Szukaj: 225 / 50 R17").click()
+    expect(search).to_have_value("")
+    assert parse_qs(urlparse(page.url).query) == {"season": ["summer"], "sort": ["high"]}
+    if mobile:
+        page.get_by_role("button", name="Filtry (1)").click()
+    expect(page.get_by_label("Średnica")).to_have_value("")
+    expect(page.get_by_role("combobox", name="Sezon")).to_have_value("summer")
+    expect(page.get_by_label("Sortuj")).to_have_value("high")
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+
+
+def budget_and_back(page):
+    path = "/felgi?budzet=3656&sztuki=4&diameter=18"
+    page.goto(ORIGIN + path)
+    card = page.locator(".catalog-grid .product-card")
+    expect(card).to_contain_text(re.compile(r"3\s?656,00"))
+    target = card.get_by_role("link", name="Felga testowa 18", exact=True)
+    for system_back in (True, False):
+        target.click()
+        back = page.get_by_role("link", name="Wróć do wyników")
+        expect(back).to_have_attribute("href", path)
+        if system_back:
+            page.go_back()
+        else:
+            back.click()
+        page.wait_for_url(ORIGIN + path)
+        expect(card.get_by_text("Ostatnio oglądany")).to_be_in_viewport()
+    page.goto(ORIGIN + "/produkt/wheel-test-18")
+    expect(page.get_by_role("link", name="Wróć do wyników")).to_have_count(0)
+    page.goto(ORIGIN + "/felgi?budzet=3655,99")
+    expect(card).to_have_count(0)
+    expect(page.get_by_role("heading", name="Brak produktów")).to_be_visible()
+
+
+def restore_scrolled_list(page):
+    path = "/opony?sort=low&budzet=2000&sztuki=4"
+    page.goto(ORIGIN + path)
+    card = page.locator('article[data-product-id="scroll-10"]')
+    link = card.get_by_role("link", name="Model 10", exact=True)
+    for use_back in (False, True):
+        link.evaluate("el => el.scrollIntoView({block: 'center', behavior: 'instant'})")
+        card.evaluate("""card => document.addEventListener('click', () => {
+          sessionStorage.setItem('tileOffsetAtClick', String(card.getBoundingClientRect().top));
+        }, {capture: true, once: true})""")
+        assert page.evaluate("scrollY") > 100
+        link.click()
+        back = page.get_by_role("link", name="Wróć do wyników")
+        expect(back).to_have_attribute("href", path)
+        if use_back:
+            page.go_back()
+        else:
+            back.click()
+        page.wait_for_url(ORIGIN + path)
+        expect(card.get_by_text("Ostatnio oglądany")).to_be_visible()
+        position = float(page.evaluate("sessionStorage.getItem('tileOffsetAtClick')"))
+        page.wait_for_function("""([id, y]) => Math.abs(
+          document.querySelector('[data-product-id="' + id + '"]').getBoundingClientRect().top - y) < 6""",
+          arg=["scroll-10", position])
+    page.goto(ORIGIN + "/opony?diameter=17")
+    expect(page.get_by_text("Ostatnio oglądany")).to_have_count(0)
+
+
+def product_purchase(page, mobile):
+    page.goto(ORIGIN + "/produkt/wheel-test-18")
+    two = page.get_by_role("radio", name="2 szt.", exact=True)
+    four = page.get_by_role("radio", name="4 szt.", exact=True)
+    expect(two).to_be_enabled()
+    page.locator(".purchase-options label").filter(has_text="2 szt.").click()
+    expect(two).to_be_checked()
+    expect(page.locator(".purchase-total dd")).to_contain_text(re.compile(r"1\s?834,00"))
+    two.press("ArrowRight")
+    expect(four).to_be_checked()
+    expect(page.locator(".purchase-prices")).to_contain_text("60,00")
+    expect(page.locator(".purchase-total dd")).to_contain_text(re.compile(r"3\s?656,00"))
+    add = page.get_by_role("button", name="Dodaj 4 szt. do koszyka")
+    if mobile:
+        page.evaluate("window.scrollTo(0, 0)")
+        expect(add).to_be_in_viewport()
+        page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+        expect(add).to_be_in_viewport()
+    add.click()
+    expect(page.get_by_role("link", name="Koszyk, sztuk: 4")).to_be_visible()
+    page.get_by_role("link", name="W koszyku: 4 szt. Przejdź do koszyka").click()
+    expect(page.locator("#shipping")).to_contain_text("60,00")
+    expect(page.locator("#checkoutTotal")).to_contain_text(re.compile(r"3\s?656,00"))
+    page.go_back()
+    expect(two).to_be_enabled()
+    page.locator(".purchase-options label").filter(has_text="2 szt.").click()
+    page.get_by_role("button", name="Dodaj 2 szt. do koszyka").click()
+    expect(four).to_be_disabled()
+    expect(page.get_by_role("link", name="Koszyk, sztuk: 6")).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
 
 
@@ -98,11 +225,46 @@ def pay(page, guest=False):
     return order_id
 
 
+def archived_purchase(page, database, source_order):
+    size = "225/50 R17"
+    item = {"id": "discontinued", "name": "Archiwalna opona", "size": size, "priceCents": 32000, "quantity": 2}
+    with sqlite3.connect(database) as db:
+        db.execute("""
+            INSERT INTO orders (id, requestId, fingerprint, status, items, customer, shipping, total,
+                                termsUrl, createdAt, paidAt, shippedAt, accountId)
+            SELECT ?, ?, 'archived-fixture', 'paid', ?, customer, 3600, 67600, termsUrl,
+                   '2020-03-01T12:00:00Z', '2020-03-01T12:01:00Z', '2020-03-02T12:00:00Z', accountId
+            FROM orders WHERE id = ?
+        """, (str(uuid4()), str(uuid4()), json.dumps([item]), source_order))
+    page.goto(ORIGIN + "/konto")
+    order = page.locator(".history-list details").filter(has_text="Archiwalna opona")
+    order.locator("summary").click()
+    expect(order.locator(".purchase-record")).to_contain_text("2 szt. · 320,00")
+    order.get_by_role("link", name="Szukaj tego rozmiaru").click()
+    page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("q") == [size])
+    expect(page.locator(".catalog-grid article")).to_have_count(1)
+    expect(page.get_by_role("link", name="Opona testowa 17", exact=True)).to_be_visible()
+
+
 with TemporaryDirectory() as directory:
+    shop = json.loads((ROOT / "shop.example.json").read_text())
+    shop["products"].extend([
+        {"id": "tire-test-17", "type": "tires", "brand": "BIEŻNIK Demo", "name": "Opona testowa 17",
+         "size": "225/50 R17", "diameter": 17, "width": 225, "profile": 50, "season": "summer",
+         "description": "Letnia opona testowa.", "image": "/assets/tire-sport.svg", "priceCents": 45900, "stock": 20},
+        {"id": "tire-test-16", "type": "tires", "brand": "BIEŻNIK Demo", "name": "Opona testowa 16",
+         "size": "205/55 R16", "diameter": 16, "width": 205, "profile": 55, "season": "winter",
+         "description": "Zimowa opona testowa.", "image": "/assets/tire-winter.svg", "priceCents": 37900, "stock": 20},
+    ])
+    for index in range(18):
+        shop["products"].append({**shop["products"][1], "id": f"scroll-{index}", "name": f"Model {index}",
+                                 "size": "215/50 R18", "width": 215, "diameter": 18})
+    shop_file = Path(directory) / "shop.json"
+    shop_file.write_text(json.dumps(shop), encoding="utf-8")
     env = {
         **os.environ, "P24_MODE": "sandbox", "P24_MERCHANT_ID": "123", "P24_POS_ID": "124",
         "P24_CRC": "fixture-crc", "P24_API_KEY": "fixture-key", "APP_ORIGIN": ORIGIN,
-        "BIEZNIK_SHOP": "shop.example.json", "BIEZNIK_DB": str(Path(directory) / "test.sqlite"),
+        "BIEZNIK_SHOP": str(shop_file), "BIEZNIK_DB": str(Path(directory) / "test.sqlite"),
         "NEXT_TELEMETRY_DISABLED": "1"
     }
     subprocess.run(["node", "server/create-admin.mjs", "admin@example.com"], input=PASSWORD + "\n",
@@ -127,6 +289,18 @@ with TemporaryDirectory() as directory:
             browser = playwright.chromium.launch(
                 executable_path=os.getenv("CHROMIUM_EXECUTABLE") or None, headless=True,
             )
+            for width in [320, 768, 1024, 1440]:
+                page = browser.new_page(viewport={"width": width, "height": 900}, reduced_motion="reduce")
+                page.set_default_timeout(8000)
+                failures = []
+                page.on("pageerror", lambda error: failures.append(str(error)))
+                catalog_filters(page, mobile=width <= 800)
+                budget_and_back(page)
+                if width in (320, 1440):
+                    restore_scrolled_list(page)
+                product_purchase(page, mobile=width <= 800)
+                assert not failures, failures
+                page.close()
             for width in [320, 768, 1440, 390]:
                 page = browser.new_page(viewport={"width": width, "height": 900}, reduced_motion="reduce")
                 page.set_default_timeout(8000)
@@ -173,13 +347,45 @@ with TemporaryDirectory() as directory:
                 page.get_by_role("link", name="BIEŻNIK Demo Felga testowa 18").click()
                 page.get_by_label("Cena brutto w groszach").fill("87900")
                 page.get_by_label("Sztuki dostępne do sprzedaży").fill("3")
+                page.locator('textarea[name="description"]').fill("Długi opis produktu. " * 35)
+                page.get_by_role("button", name="Podgląd mobilny").click()
+                preview = page.get_by_role("dialog")
+                expect(preview.locator(".detail-price-line strong")).to_have_text("879,00 zł")
+                action = preview.get_by_role("button", name="Dodaj 1 szt. do koszyka")
+                expect(action).to_be_in_viewport()
+                box = action.bounding_box()
+                dialog_box = preview.bounding_box()
+                assert dialog_box["y"] <= box["y"] and box["y"] + box["height"] <= dialog_box["y"] + dialog_box["height"] + 1
+                preview.locator(".preview-content").evaluate("el => el.scrollTop = el.scrollHeight")
+                assert abs(action.bounding_box()["y"] - box["y"]) <= 1
+                expect(preview.get_by_role("radio", name="4 szt.", exact=True)).to_be_disabled()
+                public = browser.new_page()
+                public.goto(ORIGIN + "/produkt/wheel-test-18")
+                expect(public.locator(".detail-price-line strong")).to_have_text("899,00 zł")
+                public.close()
+                page.keyboard.press("Escape")
+                expect(page.get_by_label("Cena brutto w groszach")).to_have_value("87900")
                 page.get_by_role("button", name="Zapisz produkt").click()
                 page.wait_for_url(ORIGIN + "/admin/produkty")
                 expect(page.locator("tbody")).to_contain_text("879,00")
                 page.goto(ORIGIN + "/produkt/wheel-test-18")
                 expect(page.get_by_text("Dostępne sztuki: 3")).to_be_visible()
-                expect(page.get_by_text("879,00 zł", exact=True)).to_be_visible()
+                expect(page.locator(".detail-price-line strong")).to_have_text("879,00 zł")
+                expect(page.get_by_role("radio", name="4 szt.", exact=True)).to_be_disabled()
                 page.goto(ORIGIN + "/admin/produkty/nowy")
+                page.get_by_label("Nazwa").fill("Próbna zimowa")
+                page.get_by_label("Cena brutto w groszach").fill("45900")
+                page.get_by_label("Sztuki dostępne do sprzedaży").fill("4")
+                page.get_by_label("Sezon").select_option("winter")
+                page.get_by_role("button", name="Podgląd mobilny").click()
+                expect(preview.get_by_role("heading", name="Próbna zimowa")).to_be_visible()
+                expect(preview.get_by_text("Zimowa", exact=True)).to_be_visible()
+                preview.locator(".purchase-options label").filter(has_text="4 szt.").click()
+                expect(preview.locator(".purchase-total dd")).to_contain_text(re.compile(r"1\s?896,00"))
+                preview.get_by_role("button", name="Dodaj 4 szt. do koszyka").click()
+                expect(preview.get_by_text("W podglądzie: 4 szt.")).to_be_visible()
+                preview.get_by_role("button", name="Zamknij").click()
+                expect(page.get_by_role("link", name="Koszyk, sztuk: 0")).to_be_visible()
                 page.get_by_label("SKU").fill("felga-test-2")
                 page.get_by_label("Rodzaj").select_option("wheels")
                 for name, value in {
@@ -194,10 +400,34 @@ with TemporaryDirectory() as directory:
                 expect(page.get_by_role("link", name="BIEŻNIK Felga druga")).to_be_visible()
                 page.goto(ORIGIN + "/zamowienia/" + order_id)
                 expect(page.get_by_text("TEST-123")).to_be_visible()
+                buyer = browser.new_page()
+                login(buyer, "kupujacy@example.com")
+                buyer.wait_for_url(ORIGIN + "/konto")
+                buyer.locator(".history-list summary").click()
+                expect(buyer.get_by_role("link", name="Znajdź ten model")).to_have_attribute("href", "/produkt/wheel-test-18")
+                expect(buyer.locator(".purchase-record")).to_contain_text("899,00")
+                buyer.get_by_label("Ocena").select_option("5")
+                buyer.get_by_label("Treść opinii").fill("Felgi zgodne z opisem.")
+                buyer.get_by_role("button", name="Wyślij opinię").click()
+                expect(buyer.get_by_text("Oczekuje na zatwierdzenie")).to_be_visible()
+                buyer.goto(ORIGIN + "/produkt/wheel-test-18")
+                expect(buyer.get_by_text("Felgi zgodne z opisem.")).to_have_count(0)
+                page.goto(ORIGIN + "/admin/opinie")
+                page.get_by_role("button", name="Zatwierdź").click()
+                expect(page.get_by_text("Felgi zgodne z opisem.")).to_have_count(0)
+                buyer.reload()
+                expect(buyer.get_by_text("Felgi zgodne z opisem.")).to_be_visible()
+                expect(buyer.get_by_text("Potwierdzony zakup", exact=True)).to_be_visible()
+                expect(buyer.get_by_text("Średnia 5 / 5 · Liczba opinii: 1")).to_be_visible()
+                buyer.goto(ORIGIN + "/konto")
+                buyer.locator(".history-list summary").click()
+                expect(buyer.get_by_text("Opublikowana", exact=True)).to_be_visible()
+                archived_purchase(buyer, env["BIEZNIK_DB"], order_id)
+                buyer.close()
                 assert not failures, failures
                 page.close()
             browser.close()
     finally:
         server.terminate()
         server.wait(timeout=10)
-print("Browser tests passed at 320, 390, 768 and 1440 pixels")
+print("Browser tests passed at 320, 390, 768, 1024 and 1440 pixels")

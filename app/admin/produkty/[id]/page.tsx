@@ -7,7 +7,8 @@ export default async function EditProduct({params, searchParams}: {params: Promi
   await requireAdmin();
   const {id} = await params;
   const adding = id === 'nowy' && (await searchParams).edit !== '1';
-  const product = adding ? undefined : readShop().products.find(item => item.id === id);
+  const shop = readShop();
+  const product = adding ? undefined : shop.products.find(item => item.id === id);
   if (!adding && !product) notFound();
-  return <><div className="page-intro"><h1>{adding ? 'Dodaj produkt' : 'Edytuj produkt'}</h1></div><ProductForm product={product} revision={adding ? null : runtime().orders.productRevision(id)}/></>;
+  return <><div className="page-intro"><h1>{adding ? 'Dodaj produkt' : 'Edytuj produkt'}</h1></div><ProductForm rates={shop.ordering ? shop.shipping : undefined} limit={Math.min(shop.maxUnits, shop.maxPerProduct)} product={product} revision={adding ? null : runtime().orders.productRevision(id)}/></>;
 }

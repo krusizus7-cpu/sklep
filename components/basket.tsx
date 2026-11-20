@@ -47,9 +47,12 @@ function useBasketState(maxUnits: number, maxPerProduct: number) {
 
   const count = Object.values(data.items).reduce((sum, quantity) => sum + quantity, 0);
   const quantityFor = (id: string) => Object.hasOwn(data.items, id) ? data.items[id] : 0;
+  function remainingFor(product: Product) {
+    return Math.max(0, Math.min(Math.min(product.stock, maxPerProduct) - quantityFor(product.id), maxUnits - count));
+  }
   function setQuantity(product: Product, quantity: number) {
     const previous = quantityFor(product.id);
-    if (quantity > previous && (quantity > Math.min(product.stock, maxPerProduct) || count - previous + quantity > maxUnits)) {
+    if (quantity - previous > remainingFor(product)) {
       setMessage('Osiągnięto limit dostępnych sztuk.');
       return;
     }
@@ -71,7 +74,7 @@ function useBasketState(maxUnits: number, maxPerProduct: number) {
     try { localStorage.setItem(key, JSON.stringify(updated)); } catch { /* storage is optional */ }
     setData(updated);
   }
-  return {...data, ready, count, message, quantityFor, setQuantity, remove, favorite, clear};
+  return {...data, ready, count, message, quantityFor, remainingFor, setQuantity, remove, favorite, clear};
 }
 
 const BasketContext = createContext<ReturnType<typeof useBasketState> | null>(null);
@@ -90,13 +93,13 @@ export function CartLink() {
     <span>Koszyk</span><span className="cart-number">{count}</span>
   </Link><span className="visually-hidden" role="status">{message}</span></>;
 }
-export function AddProduct({product, detail = false}: {product: Product; detail?: boolean}) {
+export function AddProduct({product}: {product: Product}) {
   const basket = useBasket();
   if (!product.stock) return <span className="stock-label">Niedostępny</span>;
-  return <button type="button" className={detail ? 'btn btn-red' : 'product-add'} disabled={!basket.ready}
+  return <button type="button" className="product-add" disabled={!basket.ready}
     aria-label={'Dodaj do koszyka: ' + product.name}
     onClick={() => basket.setQuantity(product, basket.quantityFor(product.id) + 1)}>
-    {detail ? 'Dodaj do koszyka' : '+'}
+    +
   </button>;
 }
 export function FavoriteButton({id}: {id: string}) {
