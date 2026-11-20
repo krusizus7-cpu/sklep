@@ -19,7 +19,7 @@ export default async function AccountPage({searchParams}: {searchParams: Promise
     <div className="page-intro"><h1>Moje konto</h1><p>{account.email}</p></div>
     <div className="account-actions">
       {account.role === 'admin' && <Link href="/admin" className="btn btn-border">Panel administracyjny</Link>}
-      <form action={logout}><button className="btn btn-border">Wyloguj się</button></form>
+      <form action={logout} noValidate><button className="btn btn-border">Wyloguj się</button></form>
     </div>
     <h2>Historia zamówień</h2>
     {orders.length === 0 && <p>Nie masz jeszcze zamówień. <Link href="/oferta">Przejdź do oferty</Link>.</p>}

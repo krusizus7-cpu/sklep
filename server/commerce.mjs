@@ -27,7 +27,7 @@ export function createCommerce({shop, dbPath, p24}) {
     maxUnits,
     products: orders.catalog().map(product => ({
       ...Object.fromEntries(['id', 'type', 'brand', 'name', 'size', 'diameter', 'width', 'profile', 'season',
-        'pcd', 'et', 'finish', 'priceCents', 'image', 'labelImage', 'eprelUrl', 'description'].map(key => [key, product[key]])),
+        'pcd', 'et', 'finish', 'vehicle', 'tier', 'material', 'style', 'priceCents', 'image', 'labelImage', 'eprelUrl', 'description'].map(key => [key, product[key]])),
       seasonLabel: seasonLabels[product.season],
       stock: product.stock
     }))

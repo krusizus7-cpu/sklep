@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Icon } from './icon';
 import type { Product } from '@/lib/types';
 
 type BasketState = {items: Record<string, number>; favorites: string[]};
@@ -12,7 +13,12 @@ const key = 'bieznik.basket.v1';
 function useBasketState(maxUnits: number, maxPerProduct: number) {
   const [data, setData] = useState(empty);
   const [ready, setReady] = useState(false);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{text: string} | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     try {
@@ -50,15 +56,16 @@ function useBasketState(maxUnits: number, maxPerProduct: number) {
   function setQuantity(product: Product, quantity: number) {
     const previous = quantityFor(product.id);
     if (quantity > previous && (quantity > Math.min(product.stock, maxPerProduct) || count - previous + quantity > maxUnits)) {
-      setMessage('Osiągnięto limit dostępnych sztuk.');
+      setNotice({text: 'Osiągnięto limit dostępnych sztuk.'});
       return;
     }
     const items = {...data.items, [product.id]: quantity};
     if (quantity <= 0) delete items[product.id];
     setData({...data, items});
-    setMessage(quantity > previous ? 'Dodano do koszyka.' : '');
+    setNotice(quantity > previous ? {text: 'Dodano do koszyka.'} : null);
   }
   function remove(id: string) {
+    setNotice(null);
     const items = {...data.items};
     delete items[id];
     setData({...data, items});
@@ -71,7 +78,7 @@ function useBasketState(maxUnits: number, maxPerProduct: number) {
     try { localStorage.setItem(key, JSON.stringify(updated)); } catch { /* storage is optional */ }
     setData(updated);
   }
-  return {...data, ready, count, message, quantityFor, setQuantity, remove, favorite, clear};
+  return {...data, ready, count, notice, quantityFor, setQuantity, remove, favorite, clear};
 }
 
 const BasketContext = createContext<ReturnType<typeof useBasketState> | null>(null);
@@ -84,11 +91,11 @@ export function useBasket() {
   return basket;
 }
 export function CartLink() {
-  const {count, message} = useBasket();
+  const {count, notice} = useBasket();
   return <><Link href="/koszyk" className="cart-button basket-link" aria-label={`Koszyk, sztuk: ${count}`}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2h11.5l2-8.2H6.2"/><circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg>
-    <span>Koszyk</span><span className="cart-number">{count}</span>
-  </Link><span className="visually-hidden" role="status">{message}</span></>;
+    <Icon name="cart"/>
+    <span className="cart-label">Koszyk</span><span className="cart-number">{count}</span>
+  </Link><span className={notice ? 'basket-notice visible' : 'basket-notice'} role="status">{notice?.text}</span></>;
 }
 export function AddProduct({product, detail = false}: {product: Product; detail?: boolean}) {
   const basket = useBasket();
@@ -96,7 +103,7 @@ export function AddProduct({product, detail = false}: {product: Product; detail?
   return <button type="button" className={detail ? 'btn btn-red' : 'product-add'} disabled={!basket.ready}
     aria-label={'Dodaj do koszyka: ' + product.name}
     onClick={() => basket.setQuantity(product, basket.quantityFor(product.id) + 1)}>
-    {detail ? 'Dodaj do koszyka' : '+'}
+    {detail ? <><Icon name="cart"/> Dodaj do koszyka</> : <Icon name="plus"/>}
   </button>;
 }
 export function FavoriteButton({id}: {id: string}) {
@@ -104,7 +111,7 @@ export function FavoriteButton({id}: {id: string}) {
   const saved = basket.favorites.includes(id);
   return <button type="button" className={'wish-btn' + (saved ? ' saved' : '')} disabled={!basket.ready}
     aria-label={saved ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'} aria-pressed={saved} onClick={() => basket.favorite(id)}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 5.5-8.8 11-8.8 11s-8.8-5.5-8.8-11a5 5 0 0 1 8.8-3.1 5 5 0 0 1 8.8 3.1Z"/></svg>
+    <Icon name="heart"/>
   </button>;
 }
 

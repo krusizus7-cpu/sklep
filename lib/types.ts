@@ -1,6 +1,12 @@
+import type { vehicleLabels, tierLabels, materialLabels, styleLabels } from './assortment.mjs';
+
 export type Product = {
   id: string;
-  type: 'tires' | 'wheels';
+  type: 'tires' | 'wheels' | 'hubcaps';
+  vehicle?: keyof typeof vehicleLabels;
+  tier?: keyof typeof tierLabels;
+  material?: keyof typeof materialLabels;
+  style?: keyof typeof styleLabels;
   brand: string;
   name: string;
   size: string;

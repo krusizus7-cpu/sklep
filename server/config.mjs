@@ -1,3 +1,4 @@
+import { vehicleLabels, tierLabels, materialLabels, styleLabels } from '../lib/assortment.mjs';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -40,6 +41,17 @@ export function validateProduct(product, live = false) {
       !integer(product.diameter, 8, 40) || !integer(product.priceCents, 1, 10000000) ||
       !integer(product.stock, 0, 100000) || !assetPath(product.image) ||
       (live && /\.svg$/i.test(product.image))) throw new Error('Nieprawidłowe lub powtórzone dane produktu.');
+  for (const [key, labels, allowed] of [
+    ['vehicle', vehicleLabels, product.type === 'tires' || product.type === 'wheels'],
+    ['tier', tierLabels, product.type === 'tires'],
+    ['material', materialLabels, product.type === 'wheels'],
+    ['style', styleLabels, product.type === 'wheels' && product.material === 'alloy']
+  ]) {
+    const selected = product[key];
+    if (selected !== undefined && (!allowed || typeof selected !== 'string' || !Object.hasOwn(labels, selected))) {
+      throw new Error('Sprawdź klasyfikację produktu i typ pojazdu.');
+    }
+  }
   if (product.type === 'tires') {
     if (!integer(product.width, 100, 400) || !integer(product.profile, 15, 95) ||
         !['summer', 'winter', 'allseason'].includes(product.season) ||
@@ -48,8 +60,12 @@ export function validateProduct(product, live = false) {
           !assetPath(product.labelImage) || /\.svg$/i.test(product.labelImage)))) {
       throw new Error('Uzupełnij parametry opony i dane EPREL dla sprzedaży.');
     }
-  } else if (product.type !== 'wheels' || !['pcd', 'et', 'finish'].every(field => string(product[field], 60))) {
-    throw new Error('Uzupełnij parametry felgi.');
+  } else if (product.type === 'wheels') {
+    if (!['pcd', 'et', 'finish'].every(field => string(product[field], 60))) throw new Error('Uzupełnij parametry felgi.');
+  } else if (product.type === 'hubcaps') {
+    if (!integer(product.diameter, 13, 17)) throw new Error('Wybierz średnicę kołpaka od 13 do 17 cali.');
+  } else {
+    throw new Error('Wybierz rodzaj produktu.');
   }
   if (live) {
     for (const path of [product.image, product.labelImage].filter(Boolean)) {
