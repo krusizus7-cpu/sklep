@@ -1,0 +1,112 @@
+/* BIEŻNIK V2.2 — Search is the hero. Scoped refinements; V2.1 remains unchanged. */
+.hero { min-height:740px; height: min(790px,max(735px,calc(100svh - 122px))); }
+.hero-left { width:58%; padding-top:26px; padding-bottom:70px; align-items:stretch; }
+.hero-right { width:42%; }
+.hero-left>.eyebrow { margin-bottom:22px; }
+.hero-finder { width:100%; max-width:610px; position:relative; isolation:isolate; z-index:7; }
+.hero-finder-topline { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; color:#85868b; font:700 10px/1.5 'Space Grotesk',sans-serif; letter-spacing:.16em; }
+.finder-live { display:inline-flex; align-items:center; gap:8px; font-size:9px; letter-spacing:.12em; color:#a6a5aa; }
+.finder-live i { width:6px; height:6px; border-radius:50%; background:#f23845; box-shadow:0 0 0 5px rgba(242,56,69,.12); }
+.hero-finder-heading { display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin:0 0 19px; }
+.hero-finder-heading h2 { font:800 clamp(35px,3.45vw,54px)/.95 'Barlow Condensed','Arial Narrow',sans-serif; letter-spacing:-.022em; margin:0; text-transform:uppercase; }
+.hero-finder-heading h2 span { color:var(--red); }
+.finder-heading-mark { font:700 12px 'Space Grotesk',sans-serif; letter-spacing:.12em; color:#68686d; white-space:nowrap; }
+.hero-finder .finder-shell { position:relative; width:100%; background:rgba(24,25,28,.96); border:1px solid #3b3b40; padding:0 22px 18px; box-shadow:0 24px 68px rgba(0,0,0,.27); }
+.hero-finder .finder-shell::before { content:''; position:absolute; top:-1px; left:0; width:78px; height:2px; background:var(--red); }
+.hero-finder .finder-tabs { height:68px; border-color:#3c3c41; }
+.hero-finder .finder-tabs>button[role=tab] { min-width:122px; padding:0 14px; transition:color .25s ease, border-color .25s ease, background-color .25s ease; }
+.hero-finder .finder-tabs>button[role=tab]:hover { color:#fff; background:rgba(255,255,255,.03); }
+.hero-finder .finder-help { font-size:10px; text-align:right; white-space:nowrap; }
+.hero-finder .underlined { font-size:10px; }
+.hero-finder .finder-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 12px; padding-top:22px; }
+.hero-finder .finder-group { min-width:0; }
+.hero-finder .finder-group label { margin-bottom:7px; font-size:10px; letter-spacing:.07em; }
+.hero-finder .finder-group select { height:52px; width:100%; padding:0 15px; background-color:#222327; border-color:#45464b; border-radius:2px; font:600 12px 'Space Grotesk',sans-serif; transition:background-color .2s,border-color .2s,box-shadow .2s; }
+.hero-finder .finder-group select:hover { background-color:#292a2e; border-color:#66636a; }
+.hero-finder .finder-group select:focus-visible { outline:2px solid var(--red); outline-offset:2px; }
+.hero-finder .finder-submit { width:100%; grid-column:1/-1; height:55px; justify-content:space-between; padding-left:19px; padding-right:10px; font:700 11px 'Space Grotesk',sans-serif; letter-spacing:.1em; margin-top:2px; }
+.hero-finder .finder-foot { align-items:flex-start; padding-top:14px; font:600 9px/1.7 'Space Grotesk',sans-serif; letter-spacing:.045em; }
+.hero-finder .finder-foot>span:first-child { max-width:70%; }
+.hero-finder .finder-foot>span:last-child { white-space:nowrap; }
+.hero-after { max-width:610px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:20px; }
+.hero-after>span { color:#87878c; font:600 9px 'Space Grotesk',sans-serif; letter-spacing:.14em; }
+.hero-after>span i { display:inline-block; height:1px; width:19px; background:var(--red); vertical-align:middle; margin-right:10px; }
+.hero-after a { display:inline-flex; align-items:center; gap:15px; color:#d8d7d9; font:700 11px 'Space Grotesk',sans-serif; white-space:nowrap; padding-bottom:6px; border-bottom:1px solid #68676b; transition:color .2s, border-color .2s; }
+.hero-after a:hover { color:#fff; border-color:var(--red); }
+.hero-after a span { color:var(--red); font-size:17px; line-height:1; }
+.hero-bottom { bottom:22px; }
+.hero-watermark { left:51%; }
+.hero-scroll-cue { left:50%; }
+.hero-right .hero-wheel { width:clamp(550px,51vw,770px); }
+.categories-section { padding-top:112px; }
+/* Entrance is attached to a single composition, never to individual input fields. */
+@media (prefers-reduced-motion:no-preference) {
+  html.motion-enabled .hero-finder-topline { animation:hero-copy-in .67s .11s both var(--ease-spring); }
+  html.motion-enabled .hero-finder-heading { animation:hero-copy-in .8s .18s both var(--ease-spring); }
+  html.motion-enabled .hero-finder .finder-shell { animation:hero-copy-in .85s .26s both var(--ease-spring); }
+  html.motion-enabled .hero-after { animation:hero-copy-in .85s .37s both var(--ease-spring); }
+}
+@media(max-width:1150px) {
+  .hero { min-height:730px; }
+  .hero-left { width:60%; }
+  .hero-right { width:40%; }
+  .hero-right .hero-wheel { left:38%; width:640px; }
+  .hero-finder { max-width:555px; }
+  .hero-finder .finder-help { font-size:9px; }
+  .hero-finder .finder-tabs>button[role=tab] { min-width:105px; padding:0 9px; }
+}
+@media(max-width:800px) {
+  .hero { height:auto; min-height:unset; display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+  .hero-left { height:auto; width:100%; min-height:unset; padding:46px 0 10px; z-index:5; }
+  .hero-left>.eyebrow { margin-bottom:22px; }
+  .hero-finder { max-width:660px; }
+  .hero-finder-heading h2 { font-size:clamp(42px,7vw,61px); }
+  .hero-finder .finder-shell { padding:0 24px 18px; }
+  .hero-finder .finder-tabs>button[role=tab] { min-width:145px; }
+  .hero-finder .finder-help { font-size:11px; }
+  .hero-right { position:relative; bottom:auto; left:auto; right:auto; flex:none; width:100%; height:340px; margin-top:0; overflow:visible; }
+  .hero-right .hero-wheel { width:min(590px,115vw); left:58%; top:52%; }
+  .hero-red-glow { left:17%; top:-15%; width:75%; height:120%; }
+  .hero-product-label { bottom:22px; right:25px; }
+  .hero-watermark { bottom:22px; left:7%; }
+  .hero-bottom,.hero-scroll-cue { display:none; }
+  .hero-after { max-width:660px; }
+  .categories-section { padding-top:88px; }
+}
+@media(max-width:550px) {
+  .hero-left { padding:32px 0 8px; }
+  .hero-left>.eyebrow { margin-bottom:20px; font-size:9px; }
+  .hero-finder-heading { margin-bottom:15px; }
+  .hero-finder-heading h2 { font-size:clamp(35px,9.4vw,47px); }
+  .hero-finder-topline { letter-spacing:.08em; font-size:9px; }
+  .finder-live { font-size:8px; }
+  .finder-heading-mark { font-size:10px; }
+  .hero-finder .finder-shell { padding:0 14px 14px; box-shadow:0 18px 45px rgba(0,0,0,.18); }
+  .hero-finder .finder-tabs { height:auto; min-height:62px; flex-wrap:wrap; padding-bottom:8px; gap:0; }
+  .hero-finder .finder-tabs>button[role=tab] { height:58px; flex:1 1 40%; min-width:0; justify-content:center; font-size:12px; }
+  .hero-finder .finder-help { display:block; width:100%; margin:0; padding-top:6px; font-size:10px; text-align:center; }
+  .hero-finder .finder-grid { gap:10px; padding-top:16px; }
+  .hero-finder .finder-group label { font-size:9px; margin-bottom:6px; }
+  .hero-finder .finder-group select { height:47px; padding-left:10px; padding-right:24px; background-position:right 9px center; font-size:12px; }
+  .hero-finder .finder-submit { height:52px; margin-top:4px; font-size:11px; }
+  .hero-finder .finder-foot { font-size:8px; gap:9px; padding-top:12px; }
+  .hero-finder .finder-foot>span:first-child { max-width:100%; }
+  .hero-finder .finder-foot>span:last-child { display:none; }
+  .hero-after { margin-top:17px; }
+  .hero-after>span { font-size:8px; letter-spacing:.07em; }
+  .hero-after>span i { width:10px; margin-right:5px; }
+  .hero-after a { font-size:10px; gap:8px; }
+  .hero-right { height:248px; }
+  .hero-right .hero-wheel { width:min(440px,122vw); left:62%; top:54%; }
+  .hero-ring { left:63%; }
+  .categories-section { padding-top:72px; }
+}
+@media(max-width:370px) {
+  .hero-finder-heading h2 { font-size:35px; }
+  .hero-after { flex-direction:column; align-items:flex-start; gap:14px; }
+  .hero-finder .finder-shell { padding-left:10px; padding-right:10px; }
+  .hero-finder .finder-tabs>button[role=tab] { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hero-finder .finder-shell,.hero-finder-heading,.hero-after,.hero-finder-topline { animation:none!important; transition:none!important; }
+}

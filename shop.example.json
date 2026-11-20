@@ -1,0 +1,30 @@
+{
+  "merchant": {
+    "name": "Sprzedawca testowy",
+    "address": "Przykładowa 1, 00-001 Warszawa",
+    "email": "sklep@example.com",
+    "termsUrl": "https://example.com/regulamin",
+    "privacyUrl": "https://example.com/prywatnosc"
+  },
+  "shipping": {
+    "firstCents": 2400,
+    "additionalCents": 1200
+  },
+  "products": [
+    {
+      "id": "wheel-test-18",
+      "type": "wheels",
+      "brand": "BIEŻNIK Demo",
+      "name": "Felga testowa 18",
+      "size": "8J × 18 · 5×112 · ET45",
+      "diameter": 18,
+      "pcd": "5x112",
+      "et": "45",
+      "finish": "Grafit",
+      "description": "Pozycja testowa do sprawdzenia zamówienia w sandboxie.",
+      "image": "/assets/wheel-satin.svg",
+      "priceCents": 89900,
+      "stock": 8
+    }
+  ]
+}

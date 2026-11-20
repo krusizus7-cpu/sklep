@@ -1,0 +1,11 @@
+{
+  "name": "bieznik-sklep",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=24.14.0" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "orders": "node server/operator.mjs"
+  }
+}

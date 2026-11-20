@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0c0e">
+  <meta name="description" content="Dobierz opony i felgi według parametrów. Zamów komplet z dostawą kurierską.">
+  <title>BIEŻNIK — Opony i felgi</title>
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="hero-finder.css">
+  <link rel="stylesheet" href="storefront.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a href="#main" class="skip">Przejdź do treści</a>
+  <p id="previewNotice" class="preview-notice" hidden>Katalog przykładowy. Sprzedaż jest niedostępna.</p>
+  <header class="site-header" id="siteHeader">
+    <div class="wrap header-inner">
+      <a href="#/" class="brand" aria-label="BIEŻNIK — strona główna" data-link>
+        <span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-name">BIEŻNIK<span class="brand-period">.</span><small>TYRE & WHEEL STUDIO</small></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Nawigacja główna"><a href="#/catalog/tires" data-link>Opony</a><a href="#/catalog/wheels" data-link>Felgi</a><a href="#/catalog/all" data-link>Cała oferta</a><a href="#/guide" data-link>Dobór kół</a></nav>
+      <div class="header-actions">
+        <button class="icon-btn desktop-icon" id="searchOpen" aria-label="Otwórz wyszukiwarkę" title="Szukaj"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 5 5"/></svg></button>
+        <button class="icon-btn desktop-icon" id="favoritesOpen" aria-label="Ulubione produkty" title="Ulubione"><svg viewBox="0 0 24 24"><path d="M20.8 8.8c0 5.5-8.8 11-8.8 11s-8.8-5.5-8.8-11a5 5 0 0 1 8.8-3.1 5 5 0 0 1 8.8 3.1Z"/></svg><span class="count-badge favorites-count" hidden>0</span></button>
+        <button class="cart-button" id="cartOpen" aria-label="Otwórz koszyk"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 11.2h11.5l2-8.2H6.2"/><circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg><span>Koszyk</span><span class="cart-number" id="headerCartCount">0</span></button>
+        <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Otwórz menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <nav id="mobileMenu" class="mobile-menu" aria-label="Nawigacja mobilna" hidden>
+    <a href="#/" data-link>Start</a><a href="#/catalog/tires" data-link>Opony</a><a href="#/catalog/wheels" data-link>Felgi</a><a href="#/catalog/all" data-link>Cała oferta</a><a href="#/guide" data-link>Dobór kół</a>
+    <button id="mobileSearch">Szukaj produktu <span>→</span></button>
+  </nav>
+  <main id="main" tabindex="-1">
+    <section class="page" id="homePage" data-page="home">
+      <div class="hero-wrap">
+        <section class="hero wrap" aria-labelledby="heroTitle">
+          <div class="hero-atmo"></div>
+          <div class="hero-left">
+            <p class="eyebrow red-eyebrow"><span class="line-mark"></span> Opony i felgi samochodowe</p>
+            <h1 id="heroTitle" class="visually-hidden">Dobierz opony i felgi do swojego samochodu</h1>
+            <section id="finder" class="hero-finder" aria-labelledby="finderTitle">
+              <div class="hero-finder-heading"><h2 id="finderTitle">Dobierz opony i felgi<span>.</span></h2></div>
+              <div class="finder-shell">
+          <div class="finder-tabs" role="tablist" aria-label="Rodzaj produktu"><button type="button" role="tab" aria-selected="true" class="active" data-finder-tab="tires"><span class="tab-symbol tyre-symbol"></span> OPONY</button><button type="button" role="tab" aria-selected="false" data-finder-tab="wheels"><span class="tab-symbol wheel-symbol"></span> FELGI</button><div class="finder-help">Nie znasz parametrów? <button class="underlined" type="button" id="findSizeHelp">Sprawdź poradnik →</button></div></div>
+          <form id="finderForm" class="finder-grid">
+            <div class="finder-group finder-tire-fields"><label for="tireWidth">Szerokość</label><select id="tireWidth" name="width"><option value="">Wybierz</option><option>195</option><option>205</option><option selected>225</option><option>235</option><option>245</option><option>255</option><option>275</option></select></div>
+            <div class="finder-group finder-tire-fields"><label for="tireProfile">Profil</label><select id="tireProfile" name="profile"><option value="">Wybierz</option><option>40</option><option>45</option><option selected>50</option><option>55</option><option>60</option><option>65</option></select></div>
+            <div class="finder-group finder-tire-fields"><label for="tireDiameter">Średnica</label><select id="tireDiameter" name="diameter"><option value="">Wybierz</option><option>16</option><option selected>17</option><option>18</option><option>19</option><option>20</option><option>21</option></select></div>
+            <div class="finder-group finder-wheel-fields" hidden><label for="wheelDiameter">Średnica felgi</label><select id="wheelDiameter"><option value="">Wybierz</option><option>17</option><option selected>18</option><option>19</option><option>20</option><option>21</option></select></div>
+            <div class="finder-group finder-wheel-fields" hidden><label for="wheelPcd">Rozstaw śrub (PCD)</label><select id="wheelPcd"><option value="">Wybierz</option><option selected>5x112</option><option>5x114.3</option><option>5x120</option><option>4x100</option></select></div>
+            <div class="finder-group finder-wheel-fields" hidden><label for="wheelEt">Odsadzenie (ET)</label><select id="wheelEt"><option value="">Dowolne ET</option><option>35</option><option>40</option><option>45</option><option>48</option></select></div>
+            <div class="finder-group"><label for="finderExtra" id="finderExtraLabel">Sezon</label><select id="finderExtra"><option value="all">Każdy sezon</option><option value="summer">Letnie</option><option value="winter">Zimowe</option><option value="allseason">Całoroczne</option></select></div>
+            <button class="btn btn-red finder-submit" type="submit"><span>POKAŻ PRODUKTY</span><span class="btn-arrow">→</span></button>
+          </form>
+          <div class="finder-foot"><span><span class="tiny-red-square"></span> Sprawdź zgodność z instrukcją samochodu</span><span id="finderExample">PRZYKŁAD: 225 / 50 R17</span></div>
+              </div>
+            </section>
+            <div class="hero-after"><a href="#categories">Przeglądaj ofertę <span aria-hidden="true">→</span></a></div>
+          </div>
+          <div class="hero-right" aria-hidden="true">
+            <div class="hero-ring ring-one"></div><div class="hero-ring ring-two"></div><div class="hero-red-glow"></div>
+            <div class="wheel-shadow"></div><img class="hero-wheel" src="assets/wheel-hero.svg" alt="" width="700" height="700" fetchpriority="high">
+          </div>
+        </section>
+      </div>
+      <section id="categories" class="categories-section wrap" aria-labelledby="categoriesTitle">
+        <div class="section-head"><div><h2 id="categoriesTitle">Przeglądaj według kategorii</h2></div></div>
+        <div class="category-layout">
+          <a href="#/catalog/tires" data-link class="category-card cat-tires"><div class="cat-art"><img src="assets/tire-sport.svg" alt="Wizualizacja opony samochodowej" loading="lazy" width="700" height="700"></div><div class="cat-copy"><h3>Opony</h3><div class="cat-explore">Odkryj opony <i>→</i></div></div></a>
+          <a href="#/catalog/wheels" data-link class="category-card cat-wheels"><div class="cat-art"><img src="assets/wheel-satin.svg" alt="Wizualizacja czarnej felgi aluminiowej" loading="lazy" width="700" height="700"></div><div class="cat-copy"><h3>Felgi</h3><div class="cat-explore">Odkryj felgi <i>→</i></div></div></a>
+        </div>
+      </section>
+      <section id="featured" class="featured-section wrap" aria-labelledby="featuredTitle"><div class="section-head featured-heading"><div><h2 id="featuredTitle">Wybrane produkty</h2></div><a class="section-all" href="#/catalog/all" data-link>Przeglądaj cały katalog <span>→</span></a></div><div class="product-tabs" role="tablist" aria-label="Filtruj polecane"><button class="active" type="button" data-featured="all" aria-selected="true">Wszystkie</button><button type="button" data-featured="tires" aria-selected="false">Opony</button><button type="button" data-featured="wheels" aria-selected="false">Felgi</button></div><div id="featuredGrid" class="products-grid"></div></section>
+    </section>
+    <section id="catalogPage" class="page other-page" data-page="catalog" hidden><div class="wrap inner-page"><div class="breadcrumb"><a href="#/" data-link>Start</a><span>/</span><span id="catalogBreadcrumb">Oferta</span></div><div class="catalog-header"><div><p class="eyebrow red-eyebrow"><span class="line-mark"></span> SKLEP / PRODUKTY</p><h1 id="catalogHeading">KATALOG<span>.</span></h1><p id="catalogIntro">Odkrywaj opony i felgi.</p></div></div><div class="catalog-toolbar"><span id="catalogResult">Wyniki</span><div class="toolbar-actions"><button id="toggleFilters" class="filter-toggle" type="button">Filtry <span>☷</span></button><label for="catalogSort" class="visually-hidden">Sortowanie</label><select id="catalogSort"><option value="featured">Polecane</option><option value="priceAsc">Cena: od najniższej</option><option value="priceDesc">Cena: od najwyższej</option><option value="name">Nazwa A–Z</option></select></div></div><div class="catalog-main"><aside id="catalogFilters" class="catalog-filters" aria-label="Filtry produktów"><div class="filter-block"><h3>Kategoria</h3><div class="filter-radios" id="filterCategory"><label><input type="radio" name="categoryFilter" value="all" checked> Wszystkie produkty</label><label><input type="radio" name="categoryFilter" value="tires"> Opony</label><label><input type="radio" name="categoryFilter" value="wheels"> Felgi</label></div></div><div class="filter-block"><h3>Średnica</h3><div class="filter-chips" id="filterDiameter"><button type="button" data-diameter="all" class="active">Wszystkie</button><button type="button" data-diameter="17">17″</button><button type="button" data-diameter="18">18″</button><button type="button" data-diameter="19">19″</button><button type="button" data-diameter="20">20″</button></div></div><div class="filter-block"><h3>Przeznaczenie / sezon</h3><div class="filter-radios" id="filterSeason"><label><input type="radio" name="seasonFilter" value="all" checked> Wszystkie</label><label><input type="radio" name="seasonFilter" value="summer"> Letnie</label><label><input type="radio" name="seasonFilter" value="winter"> Zimowe</label><label><input type="radio" name="seasonFilter" value="allseason"> Całoroczne</label></div></div><button id="clearFilters" class="clear-filters" type="button">Wyczyść filtry →</button></aside><div id="catalogGrid" class="products-grid catalog-grid"></div></div><div id="catalogEmpty" class="empty" hidden><h2>Brak pasujących produktów.</h2><p>Zmień średnicę lub wyczyść filtry.</p><button class="btn btn-red" id="emptyClear" type="button">Wyczyść filtry <span>→</span></button></div></div></section>
+    <section id="productPage" class="page other-page" data-page="product" hidden><div class="wrap inner-page"><div class="breadcrumb" id="productBreadcrumb"><a href="#/" data-link>Start</a><span>/</span><a href="#/catalog/all" data-link>Sklep</a><span>/</span><span>Produkt</span></div><div id="productDetail"></div><div class="related-section"><div class="section-head"><div><p class="eyebrow">POZOSTAŃ W TEMACIE</p><h2>MOŻE CI SIĘ <span>SPODOBAĆ.</span></h2></div></div><div class="products-grid" id="relatedGrid"></div></div></div></section>
+    <section id="cartPage" class="page other-page" data-page="cart" hidden><div class="wrap inner-page"><div class="breadcrumb"><a href="#/" data-link>Start</a><span>/</span>Koszyk</div><div class="page-intro"><p class="eyebrow red-eyebrow"><span class="line-mark"></span> TWOJE ZAMÓWIENIE</p><h1>KOSZYK<span>.</span></h1><p>Sprawdź produkty i przejdź do realizacji zamówienia.</p></div><div id="cartFull"></div></div></section>
+    <section id="checkoutPage" class="page other-page" data-page="checkout" hidden>
+      <div class="wrap inner-page">
+        <div class="breadcrumb"><a href="#/" data-link>Start</a><span>/</span><a href="#/cart" data-link>Koszyk</a><span>/</span>Zamówienie</div>
+        <div class="page-intro"><h1>Zamówienie</h1></div>
+        <p id="checkoutUnavailable" hidden>Składanie zamówień jest obecnie niedostępne. <a href="#/cart" data-link>Wróć do koszyka</a>.</p>
+        <div class="checkout-layout" id="checkoutLayout" hidden>
+          <form id="checkoutForm" class="panel-form">
+            <fieldset>
+              <legend>Dane kontaktowe</legend>
+              <label>Imię i nazwisko <input name="name" autocomplete="shipping name" maxlength="120" required></label>
+              <div class="form-duo">
+                <label>E-mail <input type="email" name="email" autocomplete="shipping email" maxlength="50" required></label>
+                <label>Telefon <input type="tel" name="phone" autocomplete="shipping tel" maxlength="24" required></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Adres dostawy</legend>
+              <label>Ulica, numer domu i mieszkania <input name="street" autocomplete="shipping address-line1" maxlength="160" required></label>
+              <div class="form-duo">
+                <label>Kod pocztowy <input name="postcode" autocomplete="shipping postal-code" placeholder="00-001" pattern="[0-9]{2}-[0-9]{3}" maxlength="6" required></label>
+                <label>Miejscowość <input name="city" autocomplete="shipping address-level2" maxlength="100" required></label>
+              </div>
+              <p>Kurier · dostawa na terenie Polski</p>
+            </fieldset>
+            <label class="checkbox-line"><input name="termsAccepted" type="checkbox" required><span>Akceptuję <a id="checkoutTerms" target="_blank" rel="noopener noreferrer">regulamin sklepu</a>.</span></label>
+            <p class="checkout-privacy"><a id="checkoutPrivacy" target="_blank" rel="noopener noreferrer">Polityka prywatności</a></p>
+            <p id="checkoutError" class="checkout-error" role="alert" hidden></p>
+            <button class="btn btn-red btn-wide" type="submit">Zamawiam i płacę</button>
+          </form>
+          <aside class="checkout-summary">
+            <h2>Podsumowanie</h2>
+            <div id="checkoutItems"></div>
+            <div class="checkout-summary-item"><span>Dostawa kurierem</span><strong id="checkoutShipping"></strong></div>
+            <div class="summary-total"><span>Razem brutto</span><strong id="checkoutTotal"></strong></div>
+            <p>Płatność online przez Przelewy24.</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+    <section id="orderPage" class="page other-page" data-page="order" hidden>
+      <div class="wrap inner-page">
+        <div class="page-intro"><h1>Status zamówienia</h1></div>
+        <div class="panel-form order-status">
+          <p>Numer zamówienia <strong id="orderNumber"></strong></p>
+          <p id="orderMessage" role="status"></p>
+          <div class="order-actions">
+            <a id="resumePayment" class="btn btn-red" hidden>Przejdź do Przelewy24</a>
+            <button id="refreshOrder" class="btn btn-border" type="button">Sprawdź status</button>
+            <a href="#/catalog/all" data-link>Wróć do sklepu</a>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="guidePage" class="page other-page" data-page="guide" hidden><div class="wrap inner-page"><div class="breadcrumb"><a href="#/" data-link>Start</a><span>/</span>Poradnik</div><div class="page-intro"><p class="eyebrow red-eyebrow"><span class="line-mark"></span> WIEDZA / DOBÓR</p><h1>DOBRY WYBÓR<br><span>ZACZYNA SIĘ TUTAJ.</span></h1><p>Krótki przewodnik po parametrach, które mają znaczenie przy zakupie.</p></div><div class="guide-grid"><article><span>01 / TYRE SIZE</span><h2>Jak czytać rozmiar opony?</h2><div class="guide-big">225 <b>/</b> 50 <b>R</b>17</div><p>225 — szerokość w milimetrach. 50 — profil jako procent szerokości. R — konstrukcja radialna. 17 — średnica osadzenia w calach. Sprawdź także indeks nośności i prędkości.</p></article><article><span>02 / WHEEL FITMENT</span><h2>PCD, ET, DIA — o co chodzi?</h2><div class="guide-big">5×112 <b>/</b> ET45</div><p>PCD opisuje liczbę i rozstaw otworów montażowych. ET to odsadzenie felgi. DIA to średnica otworu centralnego. Istotne są też szerokość, nośność i prześwit zacisku hamulcowego.</p></article><article><span>03 / EU LABEL</span><h2>Etykiety UE opon</h2><div class="guide-big">UE <b>/</b> EPREL</div><p>Etykieta UE podaje m.in. opory toczenia, przyczepność na mokrej nawierzchni i hałas. Kartę informacyjną znajdziesz w bazie EPREL.</p></article><article><span>04 / SAFETY FIRST</span><h2>Sprawdź zgodność z autem</h2><div class="guide-big">FIT <b>/</b> CHECK</div><p>Sam rozmiar nie gwarantuje zgodności. Przed zakupem felg i opon zweryfikuj homologację, instrukcję samochodu, indeksy, PCD, ET, DIA i wymagany udźwig.</p></article></div><div class="guide-cta"><h2>MASZ JUŻ PARAMETRY?</h2><a href="#/catalog/all" data-link class="btn btn-red">Przejdź do oferty <span class="btn-arrow">→</span></a></div></div></section>
+    <section id="favoritesPage" class="page other-page" data-page="favorites" hidden><div class="wrap inner-page"><div class="breadcrumb"><a href="#/" data-link>Start</a><span>/</span>Ulubione</div><div class="page-intro"><p class="eyebrow red-eyebrow"><span class="line-mark"></span> ZAPISANE PRODUKTY</p><h1>ULUBIONE<span>.</span></h1><p>Wracaj do produktów, które zwróciły Twoją uwagę.</p></div><div id="favoritesGrid" class="products-grid"></div><div id="favoritesEmpty" class="empty" hidden><h2>Tu na razie pusto.</h2><p>Kliknij serce przy produkcie, aby dodać go do listy.</p><a href="#/catalog/all" data-link class="btn btn-red">Zobacz ofertę <span>→</span></a></div></div></section>
+  </main>
+  <footer class="footer">
+    <div class="wrap footer-cols storefront-footer">
+      <div><a href="#/" class="brand" data-link><span class="brand-name">BIEŻNIK<span class="brand-period">.</span></span></a></div>
+      <nav aria-label="Informacje o sklepie"><a href="#/catalog/tires" data-link>Opony</a><a href="#/catalog/wheels" data-link>Felgi</a><a href="#/guide" data-link>Dobór kół</a><a id="lastOrderLink" hidden>Status zamówienia</a></nav>
+      <div id="merchantInfo" hidden>
+        <h3>Sprzedawca</h3><p id="merchantDetails"></p><a id="merchantEmail"></a><a id="merchantPhone" hidden></a>
+      </div>
+      <nav id="shopPolicies" aria-label="Regulamin i prywatność" hidden><a id="storeTerms">Regulamin</a><a id="storePrivacy">Prywatność</a></nav>
+    </div>
+  </footer>
+  <div id="overlay" class="overlay" hidden></div>
+  <aside id="cartDrawer" class="cart-drawer" aria-labelledby="drawerTitle" aria-modal="true" role="dialog" hidden><div class="drawer-head"><div><h2 id="drawerTitle">KOSZYK<span>.</span></h2></div><button id="cartClose" class="drawer-close" aria-label="Zamknij koszyk">×</button></div><div id="drawerItems" class="drawer-items"></div><div class="drawer-foot"><div><span>RAZEM</span><strong id="drawerTotal">0 zł</strong></div><a href="#/cart" class="btn btn-red btn-wide" data-link id="drawerGoCart">PRZEJDŹ DO KOSZYKA <span class="btn-arrow">→</span></a></div></aside>
+  <div id="searchModal" class="search-modal" role="dialog" aria-modal="true" aria-labelledby="searchTitle" hidden><div class="search-head"><h2 id="searchTitle">CZEGO SZUKASZ<span>?</span></h2><button class="drawer-close" id="searchClose" aria-label="Zamknij wyszukiwarkę">×</button></div><form id="searchForm"><label for="searchInput" class="visually-hidden">Nazwa produktu, rozmiar lub typ</label><input id="searchInput" type="search" placeholder="Np. 225/50 R17, 5x112, felgi 18..." autocomplete="off"><button type="submit">SZUKAJ →</button></form><p>POPULARNE: <button data-quick-search="18">18 cali</button><button data-quick-search="zimowe">Opony zimowe</button><button data-quick-search="felgi">Felgi</button></p></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
