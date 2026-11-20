@@ -9,6 +9,6 @@ export function ShippingForm({id}: {id: string}) {
     <input type="hidden" name="id" value={id}/>
     <label>Numer listu przewozowego<input name="trackingNumber" autoComplete="off" minLength={3} maxLength={80} required/></label>
     {state.error && <p className="checkout-error" role="alert">{state.error}</p>}
-    <button className="btn btn-red" disabled={pending}>Oznacz jako wysłane</button>
+    <button className="btn btn-red" disabled={pending}>{pending ? 'Zapisywanie…' : 'Oznacz jako wysłane'}</button>
   </form>;
 }

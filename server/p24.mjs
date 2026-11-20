@@ -41,6 +41,17 @@ export function createP24(config, transport = fetch) {
   const transaction = sessionId => request('transaction/by/sessionId/' + encodeURIComponent(sessionId), 'GET');
   const confirmed = details => details?.status === 2 && details.currency === 'PLN';
 
+  async function verifyPayment(notification) {
+    try {
+      await verify(notification);
+    } catch (error) {
+      const {sessionId, orderId, amount} = notification;
+      const details = await transaction(sessionId);
+      if (!confirmed(details) || details.sessionId !== sessionId ||
+          details.orderId !== orderId || details.amount !== amount) throw error;
+    }
+  }
+
   return {
     mode,
     async testAccess() {
@@ -77,24 +88,16 @@ export function createP24(config, transport = fetch) {
       const expected = signature({merchantId, posId, sessionId, amount, originAmount, currency, orderId, methodId, statement});
       return timingSafeEqual(Buffer.from(sign, 'hex'), Buffer.from(expected, 'hex'));
     },
-    async verify(notification) {
-      try {
-        await verify(notification);
-      } catch (error) {
-        const {sessionId, orderId, amount} = notification;
-        const details = await transaction(sessionId);
-        if (!confirmed(details) || details.sessionId !== sessionId ||
-            details.orderId !== orderId || details.amount !== amount) throw error;
-      }
-    },
-    async reconcile(sessionId, amount) {
+    verify: verifyPayment,
+    async reconcile(sessionId, amount, onMatch = null) {
       const details = await transaction(sessionId);
       if (details?.sessionId !== sessionId || details.currency !== 'PLN' || details.amount !== amount ||
           !Number.isSafeInteger(details.orderId) || details.orderId <= 0) {
         throw new Error('Dane płatności w Przelewy24 nie odpowiadają zamówieniu.');
       }
-      if (details.status === 1) await verify(details);
-      else if (!confirmed(details)) throw new Error('Przelewy24 nie potwierdziło płatności.');
+      if (details.status !== 1 && !confirmed(details)) throw new Error('Przelewy24 nie potwierdziło płatności.');
+      onMatch?.(details.orderId);
+      if (details.status === 1) await verifyPayment(details);
       return details.orderId;
     }
   };

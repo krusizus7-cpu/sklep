@@ -54,6 +54,7 @@ export function Checkout({shop, checkout = false, email}: {shop: Shop; checkout?
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           requestId: retryId.current, expectedTotal: subtotal + shipping,
+          expectedTermsUrl: shop.merchant.termsUrl,
           customer: {...fields, termsAccepted: fields.termsAccepted === 'on'},
           items: lines.map(({id, quantity}) => ({id, quantity}))
         })

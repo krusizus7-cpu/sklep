@@ -34,7 +34,7 @@ export async function login(_result: Result, form: FormData): Promise<Result> {
   if (!allowAttempt(input.email)) return {error: 'Za dużo prób. Spróbuj za minutę.'};
   const account = await runtime().accounts.authenticate(input.email, input.password);
   if (!account) return {error: 'Sprawdź adres e-mail i hasło.'};
-  await signIn(String(account.id));
+  if (!(await signIn(String(account.id)))) return {error: 'Sprawdź adres e-mail i hasło.'};
   redirect(account.role === 'admin' ? '/admin' : '/konto');
 }
 
@@ -48,7 +48,7 @@ export async function register(_result: Result, form: FormData): Promise<Result>
   } catch {
     return {error: 'Nie udało się utworzyć konta. Sprawdź dane lub spróbuj się zalogować.'};
   }
-  await signIn(id);
+  if (!(await signIn(id))) return {error: 'Nie udało się zalogować.'};
   redirect('/konto');
 }
 

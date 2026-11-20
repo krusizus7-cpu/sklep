@@ -10,5 +10,9 @@ globalThis.fetch = async (input, options) => {
   if (url.pathname === '/api/v1/transaction/verify') {
     return Response.json({data: {status: 'success'}, responseCode: 0});
   }
+  if (url.pathname.startsWith('/api/v1/transaction/by/sessionId/')) {
+    const sessionId = url.pathname.split('/').at(-1);
+    return Response.json({data: {sessionId, amount: 92300, currency: 'PLN', orderId: 79003, status: 2}, responseCode: 0});
+  }
   throw new Error('Unexpected payment fixture request');
 };

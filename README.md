@@ -18,8 +18,10 @@ Domyślny tryb `preview` pokazuje oznaczoną ofertę z makiety. Składanie zamó
 ## Panele
 
 - `/konto` pokazuje zamówienia zapisane podczas zalogowanego zakupu, status i numer przesyłki. Gość kupuje bez rejestracji i wraca do statusu przez swój link. Starsze zamówienia bez konta zachowują dostęp przez dotychczasowy numer. Zamówienia przypisane do konta są dostępne dla właściciela i obsługi.
-- `/admin` pozwala dodawać i edytować produkty, ceny i ilość dostępnych sztuk. W sekcji zamówień obsługa odczytuje adres dostawy i zapisuje numer przesyłki przy opłaconym zamówieniu. Zdjęcia i etykiety umieść w `public/assets/` i wskaż ich ścieżki w panelu.
-- Dane katalogu z panelu są przechowywane w bazie. Równoczesna zmiana produktu lub zapasów wymaga odświeżenia formularza przed zapisem.
+- `/admin` pokazuje sprzedaż, zamówienia do wysłania, oczekujące płatności i braki magazynowe. W produktach można dodawać, edytować i archiwizować pozycje. Zdjęcia i etykiety umieść w `public/assets/` i wskaż ich ścieżki w panelu. Korekty dostępnych sztuk zapisuj w sekcji Magazyn.
+- W szczegółach zamówienia obsługa odczytuje adres dostawy i zapisuje numer przesyłki przy opłaconym zamówieniu. Gdy brakuje potwierdzenia płatności, akcja „Sprawdź w Przelewy24” uzgadnia ją z operatorem. Anulowanie nieopłaconej rezerwacji opisano w sekcji obsługi zamówień.
+- Użytkownicy i Historia zmian obejmują zarządzanie dostępem klientów oraz rejestr działań w panelu. Blokada konta klienta kończy jego aktywne sesje.
+- Dane sprzedawcy i stawki zapisane w Ustawieniach mają pierwszeństwo przed wartościami z pliku konfiguracji. Nowe zamówienia używają aktualnych stawek, a istniejące zachowują zapisaną kwotę. Równoczesna zmiana ustawień, produktu lub zapasów wymaga odświeżenia formularza.
 
 Konto administratora zakłada operator z dostępem do serwera. W Bash odczytaj hasło bez echa i przekaż je na standardowe wejście:
 

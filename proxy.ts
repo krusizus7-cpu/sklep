@@ -21,6 +21,10 @@ export function proxy(request: NextRequest) {
   headers.set('Content-Security-Policy', csp);
   const response = NextResponse.next({request: {headers}});
   response.headers.set('Content-Security-Policy', csp);
+  if (request.nextUrl.pathname === '/admin' || request.nextUrl.pathname.startsWith('/admin/')) {
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+  }
   if (process.env.P24_MODE === 'live') response.headers.set('Strict-Transport-Security', 'max-age=31536000');
   else response.headers.set('X-Robots-Tag', 'noindex');
   return response;

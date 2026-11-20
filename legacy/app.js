@@ -410,6 +410,7 @@ async function handleCheckout(event) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         requestId, customer, expectedTotal: subtotal() + shipping(),
+        expectedTermsUrl: shop.merchant.termsUrl,
         items: [...state.cart].map(([id, quantity]) => ({id, quantity}))
       })
     });
